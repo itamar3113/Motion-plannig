@@ -1,26 +1,24 @@
 import argparse
 import os
 from typing import List, Tuple
-
+import numpy as np
 from Plotter import Plotter
 from shapely.geometry.polygon import Polygon, LineString
 
 
-def cross_product(a, b, c):
-    return (b[0] - a[0]) * (c[1] - a[1]) - (b[1] - a[1]) * (c[0] - a[0])
+def sort_vertices_counterclockwise(polygon):
+    # center_x, center_y = polygon.mean(0)
+    # x, y = polygon.T
+    # angles = np.arctan2(y, x)
+    # indices = np.argsort(angles)
+    # return polygon[indices]
+    return polygon
 
 
-def sort_vertices_counterclockwise(vertices):
-    min_vertex = min(vertices, key=lambda point: (point[1], point[0]))
-    sorted_vertices = sorted(points, key=lambda point: (
-        cross_product(min_vertex, (min_vertex[0] + 1, min_vertex[1]), point),
-        (point[0] - min_vertex[0]) ** 2 + (point[1] - min_vertex[1]) ** 2))
-    while sorted_vertices[0] != min_vertex:
-        sorted_vertices.append(sorted_vertices.pop(0))
-    return sorted_vertices
+def cross_product(p1, p2):
+    return p1[0] * p2[1] - p1[1] * p2[0]
 
 
-# TODO
 def get_minkowsky_sum(original_shape: Polygon, r: float) -> Polygon:
     """
     Get the polygon representing the Minkowsky sum
@@ -28,35 +26,28 @@ def get_minkowsky_sum(original_shape: Polygon, r: float) -> Polygon:
     :param r: The radius of the rhombus
     :return: The polygon composed from the Minkowsky sums
     """
-    res = []
-    vertices = list(original_shape.exterior.coords[:-1])
+    vertices = original_shape.exterior.coords[:-1]
     vertices = sort_vertices_counterclockwise(vertices)
-    vertices.append(vertices[0])
-    vertices.append(vertices[1])
-    robot_in_origin = [(0, -1), (1, 0), (0, 1), (-1, 0), (0, -1), (1, 0)]
+    robot_in_origin = [(0, -r), (r, 0), (0, r), (-r, 0)]
     i, j = 0, 0
     res = []
     len_poly = len(vertices)
     len_robot = len(robot_in_origin)
     p1, next_poly = vertices[i]
     p2, next_robot = robot_in_origin[j]
-    while i != len_poly or j != len_robot:
-        p1 = vertices[i]
-        p2 = robot_in_origin[j]
+    while i < len_poly or j < len_robot:
+        p1 = vertices[i % len_poly]
+        p2 = robot_in_origin[j % len_robot]
         res.append((p1[0] + p2[0], p1[1] + p2[1]))
-        next_poly = vertices[i + 1]
-        next_robot = robot_in_origin[j + 1]
-        orientation = cross_product((0, 0), (next_poly[0] - p1[0], next_poly[1] - p1[1]),
-                                    (next_robot[0] - p2[0], next_robot[1] - p2[1]))
-        if orientation < 0:
+        cross = cross_product((vertices[(i + 1) % len_poly][0] - vertices[i % len_poly][0],
+                               vertices[(i + 1) % len_poly][1] - vertices[i % len_poly][1]),
+                              (robot_in_origin[(j + 1) % len_robot][0] - robot_in_origin[j % len_robot][0],
+                               robot_in_origin[(j + 1) % len_robot][1] - robot_in_origin[j % len_robot][1]))
+        if cross >= 0:
             i += 1
-        elif orientation > 0:
-            j += 1
-        else:
-            i += 1
+        if cross <= 0:
             j += 1
     return Polygon(res)
-
 
 
 # TODO
@@ -119,29 +110,29 @@ if __name__ == '__main__':
 
     # step 2:
 
-    lines = get_visibility_graph(c_space_obstacles)
-    plotter2 = Plotter()
-
-    plotter2.add_obstacles(workspace_obstacles)
-    plotter2.add_c_space_obstacles(c_space_obstacles)
-    plotter2.add_visibility_graph(lines)
-    plotter2.add_robot(source, dist)
-
-    plotter2.show_graph()
-
-    # step 3:
-    with open(query, 'r') as f:
-        dest = tuple(map(float, f.readline().split(',')))
-
-    lines = get_visibility_graph(c_space_obstacles, source, dest)
-    # TODO: fill in the next line
-    shortest_path, cost = None, None
-
-    plotter3 = Plotter()
-    plotter3.add_robot(source, dist)
-    plotter3.add_obstacles(workspace_obstacles)
-    plotter3.add_robot(dest, dist)
-    plotter3.add_visibility_graph(lines)
-    plotter3.add_shorterst_path(list(shortest_path))
-
-    plotter3.show_graph()
+    # lines = get_visibility_graph(c_space_obstacles)
+    # plotter2 = Plotter()
+    #
+    # plotter2.add_obstacles(workspace_obstacles)
+    # plotter2.add_c_space_obstacles(c_space_obstacles)
+    # plotter2.add_visibility_graph(lines)
+    # plotter2.add_robot(source, dist)
+    #
+    # plotter2.show_graph()
+    #
+    # # step 3:
+    # with open(query, 'r') as f:
+    #     dest = tuple(map(float, f.readline().split(',')))
+    #
+    # lines = get_visibility_graph(c_space_obstacles, source, dest)
+    # # TODO: fill in the next line
+    # shortest_path, cost = None, None
+    #
+    # plotter3 = Plotter()
+    # plotter3.add_robot(source, dist)
+    # plotter3.add_obstacles(workspace_obstacles)
+    # plotter3.add_robot(dest, dist)
+    # plotter3.add_visibility_graph(lines)
+    # plotter3.add_shorterst_path(list(shortest_path))
+    #
+    # plotter3.show_graph()
