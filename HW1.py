@@ -6,6 +6,20 @@ from Plotter import Plotter
 from shapely.geometry.polygon import Polygon, LineString
 
 
+def cross_product(a, b, c):
+    return (b[0] - a[0]) * (c[1] - a[1]) - (b[1] - a[1]) * (c[0] - a[0])
+
+
+def sort_vertices_counterclockwise(vertices):
+    min_vertex = min(vertices, key=lambda point: (point[1], point[0]))
+    sorted_vertices = sorted(points, key=lambda point: (
+        cross_product(min_vertex, (min_vertex[0] + 1, min_vertex[1]), point),
+        (point[0] - min_vertex[0]) ** 2 + (point[1] - min_vertex[1]) ** 2))
+    while sorted_vertices[0] != min_vertex:
+        sorted_vertices.append(sorted_vertices.pop(0))
+    return sorted_vertices
+
+
 # TODO
 def get_minkowsky_sum(original_shape: Polygon, r: float) -> Polygon:
     """
@@ -14,7 +28,35 @@ def get_minkowsky_sum(original_shape: Polygon, r: float) -> Polygon:
     :param r: The radius of the rhombus
     :return: The polygon composed from the Minkowsky sums
     """
-    pass
+    res = []
+    vertices = list(original_shape.exterior.coords[:-1])
+    vertices = sort_vertices_counterclockwise(vertices)
+    vertices.append(vertices[0])
+    vertices.append(vertices[1])
+    robot_in_origin = [(0, -1), (1, 0), (0, 1), (-1, 0), (0, -1), (1, 0)]
+    i, j = 0, 0
+    res = []
+    len_poly = len(vertices)
+    len_robot = len(robot_in_origin)
+    p1, next_poly = vertices[i]
+    p2, next_robot = robot_in_origin[j]
+    while i != len_poly or j != len_robot:
+        p1 = vertices[i]
+        p2 = robot_in_origin[j]
+        res.append((p1[0] + p2[0], p1[1] + p2[1]))
+        next_poly = vertices[i + 1]
+        next_robot = robot_in_origin[j + 1]
+        orientation = cross_product((0, 0), (next_poly[0] - p1[0], next_poly[1] - p1[1]),
+                                    (next_robot[0] - p2[0], next_robot[1] - p2[1]))
+        if orientation < 0:
+            i += 1
+        elif orientation > 0:
+            j += 1
+        else:
+            i += 1
+            j += 1
+    return Polygon(res)
+
 
 
 # TODO
@@ -43,7 +85,8 @@ def get_points_and_dist(line):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument("Robot", help="A file that holds the starting position of the robot, and the distance from the center of the robot to any of its vertices")
+    parser.add_argument("Robot",
+                        help="A file that holds the starting position of the robot, and the distance from the center of the robot to any of its vertices")
     parser.add_argument("Obstacles", help="A file that contains the obstacles in the map")
     parser.add_argument("Query", help="A file that contains the ending position for the robot.")
     args = parser.parse_args()
@@ -91,7 +134,7 @@ if __name__ == '__main__':
         dest = tuple(map(float, f.readline().split(',')))
 
     lines = get_visibility_graph(c_space_obstacles, source, dest)
-    #TODO: fill in the next line
+    # TODO: fill in the next line
     shortest_path, cost = None, None
 
     plotter3 = Plotter()
@@ -100,6 +143,5 @@ if __name__ == '__main__':
     plotter3.add_robot(dest, dist)
     plotter3.add_visibility_graph(lines)
     plotter3.add_shorterst_path(list(shortest_path))
-
 
     plotter3.show_graph()
