@@ -3,7 +3,7 @@ import os
 from typing import List, Tuple
 import numpy as np
 from Plotter import Plotter
-from shapely.geometry.polygon import Polygon, LineString
+from shapely.geometry.polygon import Polygon, LineString, Point
 
 
 # TODO remove in is not needed
@@ -74,15 +74,25 @@ def get_visibility_graph(obstacles: List[Polygon], source=None, dest=None) -> Li
             res.append(edge)
             obstacles_edges.append(edge)
             j += 1
+    # add start and end points if exist
+    if source is not None and dest is not None:
+        obstacles.insert(0, source)
+        obstacles.insert(1, dest)
     # loop over all vertices in obstacles
     for i in range(len(obstacles)):
-        vertices = obstacles[i].exterior.coords[:-1]
+        if source is not None and i < 2:
+            vertices = [obstacles[i]]
+        else:
+            vertices = obstacles[i].exterior.coords[:-1]
         for vertex in vertices:
             # check for all the vertexes in different polygons if they have visibility line.
-            for k in range(len(obstacles)):
-                if k == i:
-                    continue
-                other_vertices = obstacles[k].exterior.coords[:-1]
+            k = i + 1
+            while k < len(obstacles):
+                if source is not None and k == 1:
+                    other_vertices = [obstacles[k]]
+                else:
+                    other_vertices = obstacles[k].exterior.coords[:-1]
+                k += 1
                 for other_vertex in other_vertices:
                     edge = LineString([vertex, other_vertex])
                     is_visible = True
@@ -158,18 +168,18 @@ if __name__ == '__main__':
     plotter2.show_graph()
 
     # # step 3:
-    # with open(query, 'r') as f:
-    #     dest = tuple(map(float, f.readline().split(',')))
-    #
-    # lines = get_visibility_graph(c_space_obstacles, source, dest)
-    # # TODO: fill in the next line
-    # shortest_path, cost = None, None
-    #
-    # plotter3 = Plotter()
-    # plotter3.add_robot(source, dist)
-    # plotter3.add_obstacles(workspace_obstacles)
-    # plotter3.add_robot(dest, dist)
-    # plotter3.add_visibility_graph(lines)
-    # plotter3.add_shorterst_path(list(shortest_path))
-    #
-    # plotter3.show_graph()
+    with open(query, 'r') as f:
+        dest = tuple(map(float, f.readline().split(',')))
+
+    lines = get_visibility_graph(c_space_obstacles, source, dest)
+    # TODO: fill in the next line
+    shortest_path, cost = None, None
+
+    plotter3 = Plotter()
+    plotter3.add_robot(source, dist)
+    plotter3.add_obstacles(workspace_obstacles)
+    plotter3.add_robot(dest, dist)
+    plotter3.add_visibility_graph(lines)
+    #plotter3.add_shorterst_path(list(shortest_path))
+
+    plotter3.show_graph()
