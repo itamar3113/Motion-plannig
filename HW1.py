@@ -196,7 +196,7 @@ if __name__ == '__main__':
     plotter1.add_c_space_obstacles(c_space_obstacles)
     plotter1.add_robot(source, dist)
 
-    #plotter1.show_graph()
+    plotter1.show_graph()
 
     # step 2:
 
@@ -208,9 +208,9 @@ if __name__ == '__main__':
     plotter2.add_visibility_graph(lines)
     plotter2.add_robot(source, dist)
 
-    #plotter2.show_graph()
+    plotter2.show_graph()
 
-    # # step 3:
+    # step 3:
     with open(query, 'r') as f:
         dest = tuple(map(float, f.readline().split(',')))
 
