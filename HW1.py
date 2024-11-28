@@ -1,7 +1,7 @@
 import argparse
 import os
 from typing import List, Tuple
-import numpy as np
+import heapq
 from Plotter import Plotter
 from shapely.geometry.polygon import Polygon, LineString, Point
 
@@ -121,6 +121,49 @@ def get_points_and_dist(line):
     return source, dist
 
 
+def find_shortest_path(lines, source, dest):
+    graph = {}
+    for line in lines:
+        if line.coords[0] not in graph:
+            graph[line.coords[0]] = []
+        if line.coords[1] not in graph:
+            graph[line.coords[1]] = []
+        graph[line.coords[0]].append(line.coords[1])
+        graph[line.coords[1]].append(line.coords[0])
+    heap = [(0, source)]
+    distances = {vertex: float('inf') for vertex in graph}
+    fathers = {vertex: None for vertex in graph}
+    distances[source] = 0
+    visited = set()
+    dest_reached = False
+    while heap:
+        distance, vertex = heapq.heappop(heap)
+        if vertex in visited:
+            continue
+        visited.add(vertex)
+        for neighbor in graph[vertex]:
+            edge = LineString([vertex, neighbor])
+            new_distance = edge.length + distance
+            if new_distance < distances[neighbor]:
+                distances[neighbor] = new_distance
+                fathers[neighbor] = vertex
+                if neighbor == dest:
+                    dest_reached = True
+                    break
+                heapq.heappush(heap, (new_distance, neighbor))
+        if dest_reached:
+            break
+    stack = [dest]
+    while stack[-1] != source:
+        stack.append(fathers[stack[-1]])
+    path = []
+    while stack:
+        path.append(stack.pop())
+    return path, distances[dest]
+
+
+
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument("Robot",
@@ -165,7 +208,7 @@ if __name__ == '__main__':
     plotter2.add_visibility_graph(lines)
     plotter2.add_robot(source, dist)
 
-    plotter2.show_graph()
+    #plotter2.show_graph()
 
     # # step 3:
     with open(query, 'r') as f:
@@ -173,13 +216,13 @@ if __name__ == '__main__':
 
     lines = get_visibility_graph(c_space_obstacles, source, dest)
     # TODO: fill in the next line
-    shortest_path, cost = None, None
+    shortest_path, cost = find_shortest_path(lines, source, dest)
 
     plotter3 = Plotter()
     plotter3.add_robot(source, dist)
     plotter3.add_obstacles(workspace_obstacles)
     plotter3.add_robot(dest, dist)
     plotter3.add_visibility_graph(lines)
-    #plotter3.add_shorterst_path(list(shortest_path))
+    plotter3.add_shorterst_path(list(shortest_path))
 
     plotter3.show_graph()
