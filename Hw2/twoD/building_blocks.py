@@ -1,6 +1,9 @@
 import itertools
+import math
+
 import numpy as np
 from shapely.geometry import Point, LineString
+
 
 class BuildingBlocks2D(object):
 
@@ -22,8 +25,10 @@ class BuildingBlocks2D(object):
         @param prev_config Previous configuration.
         @param next_config Next configuration.
         '''
-        # TODO: HW2 4.2.1
-        pass
+        res = 0
+        for i in range(self.dim):
+            res += (prev_config[i] - next_config[i]) ** 2
+        return math.sqrt(res)
 
     def compute_path_cost(self, path):
         totat_cost = 0
@@ -36,8 +41,13 @@ class BuildingBlocks2D(object):
         Compute the 2D position (x,y) of each one of the links (including end-effector) and return.
         @param given_config Given configuration.
         '''
-        # TODO: HW2 4.2.2
-        pass
+        prev_pos = (self.env.xlimit[0], self.env.ylimit[0])
+        res = np.zeros((self.dim, 2))
+        for i in range(self.dim):
+            prev_pos = (prev_pos[0] + self.links[i] * math.cos(given_config[i]),
+                        prev_pos[1] + self.links[i] * math.sin(given_config[i]))
+            res[i] = prev_pos
+        return res
 
     def compute_ee_angle(self, given_config):
         '''
@@ -68,8 +78,15 @@ class BuildingBlocks2D(object):
         Verify that the given set of links positions does not contain self collisions.
         @param robot_positions Given links positions.
         '''
-        # TODO: HW2 4.2.3
-        pass
+        lines = [LineString([robot_positions[i], robot_positions[i + 1]]) for i in range(len(robot_positions) - 1)]
+        for i in range(len(lines) - 1):
+            if lines[i].equals(lines[i + 1]):
+                return False
+            for j in range(i + 2, len(lines)):
+                if lines[i].intersects(lines[j]):
+                    return False
+        return True
+
 
     def config_validity_checker(self, config):
         '''
@@ -81,20 +98,22 @@ class BuildingBlocks2D(object):
         robot_positions = self.compute_forward_kinematics(given_config=config)
 
         # add position of robot placement ([0,0] - position of the first joint)
-        robot_positions = np.concatenate([np.zeros((1,2)), robot_positions])
+        robot_positions = np.concatenate([np.zeros((1, 2)), robot_positions])
 
         # verify that the robot do not collide with itself
         if not self.validate_robot(robot_positions=robot_positions):
             return False
 
         # verify that all robot joints (and links) are between world boundaries
-        non_applicable_poses = [(x[0] < self.env.xlimit[0] or x[1] < self.env.ylimit[0] or x[0] > self.env.xlimit[1] or x[1] > self.env.ylimit[1]) for x in robot_positions]
+        non_applicable_poses = [(x[0] < self.env.xlimit[0] or x[1] < self.env.ylimit[0] or x[0] > self.env.xlimit[1] or
+                                 x[1] > self.env.ylimit[1]) for x in robot_positions]
         if any(non_applicable_poses):
             return False
 
         # verify that all robot links do not collide with obstacle edges
         # for each obstacle, check collision with each of the robot links
-        robot_links = [LineString([Point(x[0],x[1]),Point(y[0],y[1])]) for x,y in zip(robot_positions.tolist()[:-1], robot_positions.tolist()[1:])]
+        robot_links = [LineString([Point(x[0], x[1]), Point(y[0], y[1])]) for x, y in
+                       zip(robot_positions.tolist()[:-1], robot_positions.tolist()[1:])]
         for obstacle_edges in self.env.obstacles_edges:
             for robot_link in robot_links:
                 obstacle_collisions = [robot_link.crosses(x) for x in obstacle_edges]
