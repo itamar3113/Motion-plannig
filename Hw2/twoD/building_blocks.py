@@ -41,12 +41,14 @@ class BuildingBlocks2D(object):
         Compute the 2D position (x,y) of each one of the links (including end-effector) and return.
         @param given_config Given configuration.
         '''
-        prev_pos = (self.env.xlimit[0], self.env.ylimit[0])
+        cumulative_angle = 0
+        x, y = self.env.xlimit[0], self.env.ylimit[0]
         res = np.zeros((self.dim, 2))
         for i in range(self.dim):
-            prev_pos = (prev_pos[0] + self.links[i] * math.cos(given_config[i]),
-                        prev_pos[1] + self.links[i] * math.sin(given_config[i]))
-            res[i] = prev_pos
+            cumulative_angle += given_config[i]
+            x += self.links[i] * math.cos(cumulative_angle)
+            y += self.links[i] * math.sin(cumulative_angle)
+            res[i] = (x, y)
         return res
 
     def compute_ee_angle(self, given_config):

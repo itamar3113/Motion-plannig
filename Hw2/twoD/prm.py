@@ -34,19 +34,29 @@ class PRMController:
         return None
 
     def create_graph(self, base_number, how_many_to_add, num_searches):
-        res = {}
+        K_str = ['5', '10', 'log(n)', '10log2(n)', 'n / 10']
+        res = [[], [], [], [], []]
         path = None
         configs = self.gen_coords(base_number * num_searches)
         for i in range(num_searches):
             n = base_number + i * how_many_to_add
-            K = [5, 10, math.log2(n), 10 * math.log2(n), n/10]
-            for k in K:
+            K = [5, 10, math.floor(math.log2(n)), math.floor(10 * math.log2(n)), n//10]
+            for j, k in enumerate(K):
+                print(f'samples: {n}, neighbors: {k}')
                 self.graph.clear_edges()
+                start = time.time()
                 self.add_to_graph(configs[:n], k)
                 path = self.run_PRM(n, k)
-            if path is not None:
-                return path
-        return path
+                end = time.time()
+                run_time = end - start
+                if path is not None:
+                    cost = self.bb.compute_path_cost(path)
+                    res[j].append((path, cost, time))
+                    print(f'cost: {cost}, time: {run_time:.6f}')
+                else:
+                    res[j].append((None, None, None))
+                    print('no path')
+        return res
 
     def gen_coords(self, n=5):
         """

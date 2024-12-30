@@ -9,6 +9,8 @@ from threeD.environment import Environment
 from threeD.kinematics import UR5e_PARAMS, Transform
 from threeD.building_blocks import BuildingBlocks3D
 from threeD.visualizer import Visualize_UR
+from matplotlib import pyplot as plt
+import re
 
 
 def run_2d():
@@ -22,25 +24,32 @@ def run_2d():
     visualizer.visualize_map(config=conf)
 
     robot_positions = bb.compute_forward_kinematics(given_config=conf)
-    print(bb.validate_robot(robot_positions=robot_positions)) # check robot validity
-    print(bb.config_validity_checker(config=conf)) # check robot and map validity
+    print(bb.validate_robot(robot_positions=robot_positions))  # check robot validity
+    print(bb.config_validity_checker(config=conf))  # check robot and map validity
 
 
 def run_prm():
     conf1 = np.array([0.78, -0.78, 0.0, 0.0])
-    conf2 = np.array([0.8, -0.8, 0.8, 0.5])
-    #conf2 = np.array([0.8, 0.8, 0.3, 0.5])
-
+    # conf2 = np.array([0.8, -0.8, 0.8, 0.5])
+    conf2 = np.array([0.8, 0.8, 0.3, 0.5])
     planning_env = MapEnvironment(json_file="./twoD/map_mp.json")
     bb = BuildingBlocks2D(planning_env)
+    print(bb.config_validity_checker(conf2))
     visualizer = Visualizer(bb)
     prm = PRMController(conf1, conf2, bb)
-
+    visualizer.visualize_map(conf2, plan=None, show_map=True)
     plan = prm.create_graph(100, 100, 7)
-    if plan is not None:
-        print(bb.compute_path_cost(plan))
-        visualizer.visualize_plan_as_gif(plan)
+    file_name = "output.txt"
 
+    # Write the data to the file
+    with open(file_name, "w") as file:
+        for sublist in plan:
+            file.write(", ".join(str(tup) for tup in sublist) + "\n")
+    for k in plan:
+        for path_data in k:
+            if path_data[0] is not None:
+                print(bb.compute_path_cost(path_data[0]))
+                visualizer.visualize_plan_as_gif(path_data[0])
 
 
 def generate_graph():
@@ -50,7 +59,6 @@ def generate_graph():
     bb = BuildingBlocks2D(planning_env)
     prm = PRMController(conf1, conf2, bb)
     prm.create_graph()
-
 
 
 def run_3d():
@@ -75,12 +83,47 @@ def run_3d():
 
     # collision checking examples
     res = bb.is_in_collision(conf=conf1)
-    res = bb.local_planner(prev_conf=conf1 ,current_conf=conf2)
+    res = bb.local_planner(prev_conf=conf1, current_conf=conf2)
 
     visualizer.show_conf(conf1)
 
+
+def extract_data_from_file(file_name):
+    colors = ['b', 'g', 'r', 'y', 'k']
+    K = ['5', '10', 'log(n)', '10log2(n)', 'n / 10']
+    n = [100, 200, 300, 400, 500, 600, 700]
+    path_data = {k: {'cost': [], 'time': []} for k in K}
+    # Open the file
+    with open(file_name, 'r') as file:
+        lines = file.readlines()
+        i = 1
+        k = 0
+        while i < len(lines):
+            line = lines[i].strip()
+            if line.startswith('cost'):
+                words = line.strip().split(' ')
+                path_data[K[k % 5]]['cost'].append(float(words[1].strip(',')))
+                path_data[K[k % 5]]['time'].append(float(words[3].strip(',')))
+            k += 1
+            i += 2
+    for j, k in enumerate(K):
+        times = path_data[k]['time']
+        gap = len(n) - len(times)
+        copy_n = n
+        if gap > 0:
+            copy_n = n[gap:]
+        plt.plot(copy_n, times, color=colors[j], label=f'k = {k}')
+    plt.xlabel('number of samples')
+    plt.ylabel("time (seconds)")
+    plt.title('times vs number of samples')
+    plt.legend()
+    plt.show()
+
+
 if __name__ == "__main__":
-    #run_2d()
-    run_prm()
+    # run_2d()
+    # run_prm()
     # run_3d()
     # generate_graph()
+    data = extract_data_from_file('output.txt')
+
