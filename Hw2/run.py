@@ -34,7 +34,6 @@ def run_prm():
     conf2 = np.array([0.8, 0.8, 0.3, 0.5])
     planning_env = MapEnvironment(json_file="./twoD/map_mp.json")
     bb = BuildingBlocks2D(planning_env)
-    print(bb.config_validity_checker(conf2))
     visualizer = Visualizer(bb)
     prm = PRMController(conf1, conf2, bb)
     visualizer.visualize_map(conf2, plan=None, show_map=True)
@@ -64,28 +63,27 @@ def generate_graph():
 def run_3d():
     ur_params = UR5e_PARAMS(inflation_factor=1)
     transform = Transform(ur_params)
-
+    env = Environment(env_idx=1)
     bb = BuildingBlocks3D(transform=transform,
                           ur_params=ur_params,
-                          resolution=0.1,
-                          p_bias=0.05, )
+                          resolution=0.9,
+                          p_bias=0.05, env=env)
 
-    env = Environment(env_idx=1, bb=bb)
+
 
     visualizer = Visualize_UR(ur_params, env=env, transform=transform, bb=bb)
 
     # --------- configurations-------------
-    conf1 = np.deg2rad([0, -90, 0, -90, 0, 0])
-
-    conf2 = np.array([-0.694, -1.376, -2.212, -1.122, 1.570, -2.26])
+    conf1 = np.deg2rad([80,-72, 101,-120,-90,-10])
+    conf2 = np.deg2rad([20,-90, 90,-90,-90,-10])
+    
 
     # ---------------------------------------
 
     # collision checking examples
-    res = bb.is_in_collision(conf=conf1)
-    res = bb.local_planner(prev_conf=conf1, current_conf=conf2)
-
-    visualizer.show_conf(conf1)
+    #res = bb.is_in_collision(conf=conf1)
+    #res = bb.local_planner(prev_conf=conf1, current_conf=conf2)
+    print(bb.local_planner(prev_conf=conf1, current_conf=conf2))
 
 
 def extract_data_from_file(file_name):
@@ -122,8 +120,7 @@ def extract_data_from_file(file_name):
 
 if __name__ == "__main__":
     # run_2d()
-    # run_prm()
-    # run_3d()
+    #run_prm()
+    run_3d()
     # generate_graph()
-    data = extract_data_from_file('output.txt')
 
