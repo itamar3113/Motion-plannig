@@ -60,18 +60,15 @@ class BuildingBlocks3D(object):
 			for center1 in spheres1:
 				for center2 in spheres2:
 					if spheres_intersect(center1, radius1, center2, radius2):
-						print(f'collision between {links[0]} and {links[1]}')
 						return True
 		
 		for link, spheres in all_spheres.items():
 			for sphere in spheres:
 				radius = self.transform.sphere_radius[link]
 				if link != 'shoulder_link' and sphere[2] - radius < 0:
-					print(f'collision with ground link: {link}')
 					return True
 				for obstacle in self.env.obstacles:
 					if spheres_intersect(sphere, radius, obstacle, self.env.radius):
-						print(f'collision with obstacle link: {link}')
 						return True
 		return False
 

@@ -7,6 +7,8 @@ import math
 import matplotlib.pyplot as plt
 import heapq
 
+from twoD.visualizer import Visualizer
+
 
 class PRMController:
     def __init__(self, start, goal, bb):
@@ -24,12 +26,14 @@ class PRMController:
             return-the found plan and None if couldn't find
         """
         path = []
+        visualizer = Visualizer(self.bb)
         # Preprocessing
         # Planning part
         path_nodes, _ = self.shortest_path()
         if path_nodes is not None:
             for node in path_nodes:
                 path.append(self.graph.nodes[node]['pos'])
+            visualizer.visualize_plan_as_gif(path)
             return path
         return None
 

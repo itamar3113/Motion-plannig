@@ -66,7 +66,7 @@ def run_3d():
     env = Environment(env_idx=1)
     bb = BuildingBlocks3D(transform=transform,
                           ur_params=ur_params,
-                          resolution=0.9,
+                          resolution=0.1,
                           p_bias=0.05, env=env)
 
 
@@ -83,8 +83,12 @@ def run_3d():
     # collision checking examples
     #res = bb.is_in_collision(conf=conf1)
     #res = bb.local_planner(prev_conf=conf1, current_conf=conf2)
-    print(bb.local_planner(prev_conf=conf1, current_conf=conf2))
-
+    collision = True
+    while collision:
+        conf1 = bb.sample(conf2)
+        if bb.is_in_collision(conf1):
+            visualizer.show_conf(conf1)
+    visualizer.show_conf(conf2)
 
 def extract_data_from_file(file_name):
     colors = ['b', 'g', 'r', 'y', 'k']
