@@ -13,12 +13,15 @@ class DotBuildingBlocks2D(object):
         self.vis_dist = 60.0
 
     def compute_distance(self, prev_config, next_config):
-        # TODO: HW3 2.1
-        pass
+        return np.linalg.norm(prev_config - next_config)
 
     def sample_random_config(self, goal_prob, goal):
-        # TODO: HW3 2.1
-        pass
+        if np.random.rand() < goal_prob:
+            return goal
+        else:
+            random_x = np.random.uniform(self.env.xlimit[0], self.env.xlimit[1])
+            random_y = np.random.uniform(self.env.ylimit[0], self.env.ylimit[1])
+            return np.array([random_x, random_y])
 
     def config_validity_checker(self, state):
         return self.env.config_validity_checker(state)
