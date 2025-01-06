@@ -19,8 +19,13 @@ class DotBuildingBlocks2D(object):
         if np.random.rand() < goal_prob:
             return goal
         else:
-            random_x = np.random.uniform(self.env.xlimit[0], self.env.xlimit[1])
-            random_y = np.random.uniform(self.env.ylimit[0], self.env.ylimit[1])
+            free = False
+            random_x, random_y = 0, 0
+            while not free:
+                random_x = np.random.uniform(self.env.xlimit[0], self.env.xlimit[1])
+                random_y = np.random.uniform(self.env.ylimit[0], self.env.ylimit[1])
+                if self.config_validity_checker(np.array([random_x, random_y])):
+                    free = True
             return np.array([random_x, random_y])
 
     def config_validity_checker(self, state):
