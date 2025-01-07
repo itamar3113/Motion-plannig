@@ -16,7 +16,7 @@ class RRTMotionPlanner(object):
         # set search params
         self.ext_mode = ext_mode
         self.goal_prob = goal_prob
-        self.step_size = 1
+        self.step_size = 5
 
     def plan(self):
         '''
@@ -32,6 +32,7 @@ class RRTMotionPlanner(object):
         end_time = time.time()
         print(f"Time: {end_time - start_time}")
         curr_id = self.tree.get_idx_for_config(self.goal)
+        print(f'cost: {self.tree.vertices[curr_id].cost}')
         while curr_id != self.tree.get_idx_for_config(self.start):
             plan.append(self.tree.vertices[curr_id].config)
             curr_id = self.tree.edges[curr_id]
@@ -70,7 +71,7 @@ class RRTMotionPlanner(object):
                 if dis_to_rand < self.step_size:
                     new_config = rand_config
                 else:
-                    direction = near_config - rand_config
+                    direction = rand_config - near_config
                     new_config = near_config + direction / dis_to_rand * self.step_size
                 if self.bb.edge_validity_checker(near_config, new_config):
                     id2 = self.tree.add_vertex(new_config)

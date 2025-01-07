@@ -2,6 +2,7 @@ import itertools
 import numpy as np
 from shapely.geometry import Point, LineString
 
+
 class BuildingBlocks2D(object):
 
     def __init__(self, env):
@@ -22,8 +23,7 @@ class BuildingBlocks2D(object):
         @param prev_config Previous configuration.
         @param next_config Next configuration.
         '''
-        # TODO: HW2 4.2.1
-        pass
+        return np.linalg.norm(prev_config - next_config)
 
     def compute_path_cost(self, path):
         totat_cost = 0
@@ -31,14 +31,32 @@ class BuildingBlocks2D(object):
             totat_cost += self.compute_distance(path[i], path[i + 1])
         return totat_cost
 
+    def sample_random_config(self, goal_prob, goal):
+        if np.random.rand() < goal_prob:
+            return goal
+        else:
+            free = False
+            while not free:
+                new_config = np.random.uniform(-np.pi, np.pi, 4)
+                if self.config_validity_checker(new_config):
+                    free = True
+            return new_config
+
     def compute_forward_kinematics(self, given_config):
         '''
         Compute the 2D position (x,y) of each one of the links (including end-effector) and return.
         @param given_config Given configuration.
         '''
         # positions are 2D points + angle (3 dimensions) for each of the links of the robot
-        # TODO: HW2 4.2.2
-        pass
+        cumulative_angle = 0
+        x, y = self.env.xlimit[0], self.env.ylimit[0]
+        res = np.zeros((self.dim, 2))
+        for i in range(self.dim):
+            cumulative_angle += given_config[i]
+            x += self.links[i] * np.cos(cumulative_angle)
+            y += self.links[i] * np.sin(cumulative_angle)
+            res[i] = (x, y)
+        return res
 
     def compute_ee_angle(self, given_config):
         '''
@@ -69,8 +87,15 @@ class BuildingBlocks2D(object):
         Verify that the given set of links positions does not contain self collisions.
         @param robot_positions Given links positions.
         '''
-        # TODO: HW2 4.2.1
-        pass
+        lines = [LineString([robot_positions[i], robot_positions[i + 1]]) for i in range(len(robot_positions) - 1)]
+        for i in range(len(lines) - 1):
+            if lines[i].equals(lines[i + 1]):
+                return False
+            for j in range(i + 2, len(lines)):
+                if lines[i].intersects(lines[j]):
+                    return False
+        return True
+
 
     def config_validity_checker(self, config):
         '''
@@ -82,20 +107,22 @@ class BuildingBlocks2D(object):
         robot_positions = self.compute_forward_kinematics(given_config=config)
 
         # add position of robot placement ([0,0] - position of the first joint)
-        robot_positions = np.concatenate([np.zeros((1,2)), robot_positions])
+        robot_positions = np.concatenate([np.zeros((1, 2)), robot_positions])
 
         # verify that the robot do not collide with itself
         if not self.validate_robot(robot_positions=robot_positions):
             return False
 
         # verify that all robot joints (and links) are between world boundaries
-        non_applicable_poses = [(x[0] < self.env.xlimit[0] or x[1] < self.env.ylimit[0] or x[0] > self.env.xlimit[1] or x[1] > self.env.ylimit[1]) for x in robot_positions]
+        non_applicable_poses = [(x[0] < self.env.xlimit[0] or x[1] < self.env.ylimit[0] or x[0] > self.env.xlimit[1] or x[
+            1] > self.env.ylimit[1]) for x in robot_positions]
         if any(non_applicable_poses):
             return False
 
         # verify that all robot links do not collide with obstacle edges
         # for each obstacle, check collision with each of the robot links
-        robot_links = [LineString([Point(x[0],x[1]),Point(y[0],y[1])]) for x,y in zip(robot_positions.tolist()[:-1], robot_positions.tolist()[1:])]
+        robot_links = [LineString([Point(x[0], x[1]), Point(y[0], y[1])]) for x, y in
+                       zip(robot_positions.tolist()[:-1], robot_positions.tolist()[1:])]
         for obstacle_edges in self.env.obstacles_edges:
             for robot_link in robot_links:
                 obstacle_collisions = [robot_link.crosses(x) for x in obstacle_edges]
@@ -103,6 +130,7 @@ class BuildingBlocks2D(object):
                     return False
 
         return True
+
 
     def edge_validity_checker(self, config1, config2):
         '''
@@ -149,8 +177,8 @@ class BuildingBlocks2D(object):
                     len(np.where(configs_positions[:, :, 0] > self.env.xlimit[1])[0]) > 0 or \
                     len(np.where(configs_positions[:, :, 1] > self.env.ylimit[1])[0]) > 0:
                 return False
-
         return True
+
 
     def get_inspected_points(self, config):
         '''
@@ -199,6 +227,7 @@ class BuildingBlocks2D(object):
 
         return inspected_points
 
+
     def compute_angle_of_vector(self, vec):
         '''
         A utility function to compute the angle of the vector from the end-effector to a point.
@@ -209,6 +238,7 @@ class BuildingBlocks2D(object):
             return np.arccos(vec[0])
         else:  # vec[1] <= 0
             return -np.arccos(vec[0])
+
 
     def check_if_angle_in_range(self, angle, ee_range):
         '''
@@ -227,6 +257,7 @@ class BuildingBlocks2D(object):
 
         return True
 
+
     def compute_union_of_points(self, points1, points2):
         '''
         Compute a union of two sets of inpection points.
@@ -235,6 +266,7 @@ class BuildingBlocks2D(object):
         '''
         # TODO: HW3 2.3.2
         pass
+
 
     def compute_coverage(self, inspected_points):
         '''
