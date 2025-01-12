@@ -16,7 +16,17 @@ class RRTMotionPlanner(object):
         # set search params
         self.ext_mode = ext_mode
         self.goal_prob = goal_prob
-        self.step_size = 5
+        self.step_size = 2
+        self.distance_from_goal = self.bb.compute_distance(self.start, self.goal)
+
+    def sample_random_config(self, goal_prob, goal):
+        if np.random.rand() < goal_prob:
+            return goal
+        while True:
+            new_config = np.random.uniform(-np.pi, np.pi, 4)
+            if self.bb.config_validity_checker(new_config):
+                return new_config
+
 
     def plan(self):
         '''
@@ -26,7 +36,7 @@ class RRTMotionPlanner(object):
         plan = []
         start_time = time.time()
         while not self.tree.is_goal_exists(self.goal):
-            new_config = self.bb.sample_random_config(self.goal_prob, self.goal)
+            new_config = self.sample_random_config(self.goal_prob, self.goal)
             _, neighbor = self.tree.get_nearest_config(new_config)
             self.extend(neighbor, new_config)
         end_time = time.time()
@@ -38,10 +48,7 @@ class RRTMotionPlanner(object):
             curr_id = self.tree.edges[curr_id]
         plan.append(self.tree.vertices[curr_id].config)
         plan.reverse()
-        return np.array(plan)
-
-
-
+        return np.array(plan), end_time - start_time, self.compute_cost(plan)
 
 
     def compute_cost(self, plan):
@@ -51,8 +58,9 @@ class RRTMotionPlanner(object):
         '''
         cost = 0
         for i in range(len(plan) - 1):
-            cost += self.bb.compute_distances(plan[i], plan[i+1])
+            cost += self.bb.compute_distance(plan[i], plan[i + 1])
         return cost
+
 
     def extend(self, near_config, rand_config):
         '''
@@ -77,3 +85,9 @@ class RRTMotionPlanner(object):
                     id2 = self.tree.add_vertex(new_config)
                     id1 = self.tree.get_idx_for_config(near_config)
                     self.tree.add_edge(id1, id2, self.bb.compute_distance(near_config, new_config))
+                    if len(self.tree.vertices) % 100 == 0:
+                        print(len(self.tree.vertices))
+                    from_gol = self.bb.compute_distance(new_config, self.goal)
+                    if from_gol < self.distance_from_goal:
+                        self.distance_from_goal = from_gol
+                        print(self.distance_from_goal)

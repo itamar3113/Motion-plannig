@@ -26,21 +26,11 @@ class BuildingBlocks2D(object):
         return np.linalg.norm(prev_config - next_config)
 
     def compute_path_cost(self, path):
-        totat_cost = 0
+        total_cost = 0
         for i in range(len(path) - 1):
-            totat_cost += self.compute_distance(path[i], path[i + 1])
-        return totat_cost
+            total_cost += self.compute_distance(path[i], path[i + 1])
+        return total_cost
 
-    def sample_random_config(self, goal_prob, goal):
-        if np.random.rand() < goal_prob:
-            return goal
-        else:
-            free = False
-            while not free:
-                new_config = np.random.uniform(-np.pi, np.pi, 4)
-                if self.config_validity_checker(new_config):
-                    free = True
-            return new_config
 
     def compute_forward_kinematics(self, given_config):
         '''
@@ -96,7 +86,6 @@ class BuildingBlocks2D(object):
                     return False
         return True
 
-
     def config_validity_checker(self, config):
         '''
         Verify that the config (given or stored) does not contain self collisions or links that are out of the world boundaries.
@@ -114,8 +103,9 @@ class BuildingBlocks2D(object):
             return False
 
         # verify that all robot joints (and links) are between world boundaries
-        non_applicable_poses = [(x[0] < self.env.xlimit[0] or x[1] < self.env.ylimit[0] or x[0] > self.env.xlimit[1] or x[
-            1] > self.env.ylimit[1]) for x in robot_positions]
+        non_applicable_poses = [
+            (x[0] < self.env.xlimit[0] or x[1] < self.env.ylimit[0] or x[0] > self.env.xlimit[1] or x[
+                1] > self.env.ylimit[1]) for x in robot_positions]
         if any(non_applicable_poses):
             return False
 
@@ -130,7 +120,6 @@ class BuildingBlocks2D(object):
                     return False
 
         return True
-
 
     def edge_validity_checker(self, config1, config2):
         '''
@@ -179,7 +168,6 @@ class BuildingBlocks2D(object):
                 return False
         return True
 
-
     def get_inspected_points(self, config):
         '''
         A function to compute the set of points that are visible to the robot with the given configuration.
@@ -227,7 +215,6 @@ class BuildingBlocks2D(object):
 
         return inspected_points
 
-
     def compute_angle_of_vector(self, vec):
         '''
         A utility function to compute the angle of the vector from the end-effector to a point.
@@ -238,7 +225,6 @@ class BuildingBlocks2D(object):
             return np.arccos(vec[0])
         else:  # vec[1] <= 0
             return -np.arccos(vec[0])
-
 
     def check_if_angle_in_range(self, angle, ee_range):
         '''
@@ -257,16 +243,19 @@ class BuildingBlocks2D(object):
 
         return True
 
-
     def compute_union_of_points(self, points1, points2):
         '''
         Compute a union of two sets of inpection points.
         @param points1 list of inspected points.
         @param points2 list of inspected points.
         '''
-        # TODO: HW3 2.3.2
-        pass
-
+        if points1.size == 0:
+            return points2
+        if points2.size == 0:
+            return points1
+        combined_points = np.vstack((points1, points2))
+        unique_points = np.unique(combined_points, axis=0)
+        return unique_points
 
     def compute_coverage(self, inspected_points):
         '''

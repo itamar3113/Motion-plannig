@@ -209,6 +209,7 @@ class Visualizer:
             data = np.fromstring(canvas.tostring_rgb(), dtype=np.uint8, sep='')
             data = data.reshape(canvas.get_width_height()[::-1] + (3,))
             plan_images.append(data)
+            plt.close()
 
         # store gif
         plan_time = datetime.now().strftime("%d-%m-%Y_%H-%M-%S")
