@@ -1,3 +1,4 @@
+import numpy
 import numpy as np
 import os
 from datetime import datetime
@@ -15,6 +16,7 @@ from RRTMotionPlanner import RRTMotionPlanner
 from RRTInspectionPlanner import RRTInspectionPlanner
 from RRTStarPlanner import RRTStarPlanner
 from twoD.visualizer import Visualizer
+import time
 
 # MAP_DETAILS = {"json_file": "twoD/map1.json", "start": np.array([10,10]), "goal": np.array([4, 6])}
 MAP_DETAILS = {"json_file": "twoD/map2.json", "start": np.array([360, 150]), "goal": np.array([100, 200])}
@@ -107,7 +109,7 @@ def run_2d_rrt_star():
 
 def run_3d():
     ur_params = UR5e_PARAMS(inflation_factor=1)
-    env = Environment(env_idx=1)
+    env = Environment(env_idx=2)
     transform = Transform(ur_params)
 
     bb = BuildingBlocks3D(transform=transform,
@@ -121,49 +123,89 @@ def run_3d():
     env2_start = np.deg2rad([110, -70, 90, -90, -90, 0])
     env2_goal = np.deg2rad([50, -80, 90, -90, -90, 0])
     # ---------------------------------------
+    biases = [0.05, 0.2]
+    step_sizes = [0.05, 0.075, 0.1, 0.125, 0.2, 0.25, 0.3, 0.4]
+    success_rates = []
+    costs = []
+    times = []
+    for bias in biases:
+        for step_size in step_sizes:
+            if bias == 0.05 and step_size < 0.4:
+                continue
+            total_cost = 0
+            total_time = 0
+            failed = 0
+            for i in range(20):
+                print(f"Bias: {bias}, Step Size: {step_size} round {i}")
+                rrt_star_planner = RRTStarPlanner(max_step_size=step_size,
 
-    rrt_star_planner = RRTStarPlanner(max_step_size=0.5,
-                                      start=env2_start,
-                                      goal=env2_goal,
-                                      max_itr=4000,
-                                      stop_on_goal=True,
-                                      bb=bb,
-                                      goal_prob=0.05,
-                                      ext_mode="E2")
+                                                  start=env2_start,
+                                                  goal=env2_goal,
+                                                  max_itr=2000,
+                                                  stop_on_goal=False,
+                                                  bb=bb,
+                                                  k=5,
+                                                  goal_prob=bias,
+                                                  ext_mode="E2")
 
-    path = rrt_star_planner.plan()
+                start_time = time.time()
+                path = rrt_star_planner.plan()
+                end_time = time.time()
+                if path is not None:
 
-    if path is not None:
+                    # create a folder for the experiment
+                    # Format the time string as desired (YYYY-MM-DD_HH-MM-SS)
+                    now = datetime.now()
+                    time_str = now.strftime("%Y-%m-%d_%H-%M-%S")
 
-        # create a folder for the experiment
-        # Format the time string as desired (YYYY-MM-DD_HH-MM-SS)
-        now = datetime.now()
-        time_str = now.strftime("%Y-%m-%d_%H-%M-%S")
+                    # create the folder
+                    exps_folder_name = os.path.join(os.getcwd(), "exps")
+                    if not os.path.exists(exps_folder_name):
+                        os.mkdir(exps_folder_name)
+                    exp_folder_name = os.path.join(exps_folder_name,
+                                                   "exp_pbias_" + str(bb.p_bias) + "_max_step_size_" + str(
+                                                       rrt_star_planner.step_size) + "_" + time_str)
+                    if not os.path.exists(exp_folder_name):
+                        os.mkdir(exp_folder_name)
 
-        # create the folder
-        exps_folder_name = os.path.join(os.getcwd(), "exps")
-        if not os.path.exists(exps_folder_name):
-            os.mkdir(exps_folder_name)
-        exp_folder_name = os.path.join(exps_folder_name, "exp_pbias_" + str(bb.p_bias) + "_max_step_size_" + str(
-            rrt_star_planner.max_step_size) + "_" + time_str)
-        if not os.path.exists(exp_folder_name):
-            os.mkdir(exp_folder_name)
+                    # save the path
+                    np.save(os.path.join(exp_folder_name, 'path'), path)
+                    cost = rrt_star_planner.compute_cost(path)
+                    total_cost += cost
+                    # save the cost of the path and time it took to compute
+                    with open(os.path.join(exp_folder_name, 'stats'), "w") as file:
+                        file.write("Path cost: {} \n".format(cost))
+                        file.write(f'Run Time: {end_time - start_time} \n')
 
-        # save the path
-        np.save(os.path.join(exp_folder_name, 'path'), path)
+                    visualizer.show_path(path)
+                else:
+                    failed += 1
+                total_time += end_time - start_time
+            path = "exp_pbias_" + str(bias) + "_max_step_size_" + str(step_size) + ".txt"
+            with open(path, 'w') as file:
+                if failed == 20:
+                    file.write('cost: 0 \n')
+                else:
+                    file.write(f'cost: {total_cost / (20 - failed)} \n')
+                file.write(f"time: {total_time / 20} \n")
+                file.write(f'success: {1 - (failed / 20)}')
+    with open('results.txt', 'w') as file:
+        for cost in costs:
+            file.write(f'{cost},')
+        file.write('\n')
+        for t in times:
+            file.write(f'{t}, ')
+        file.write('\n')
+        for success_rate in success_rates:
+            file.write(f'{success_rate}, ')
 
-        # save the cost of the path and time it took to compute
-        with open(os.path.join(exp_folder_name, 'stats'), "w") as file:
-            file.write("Path cost: {} \n".format(rrt_star_planner.compute_cost()))
-
-        visualizer.show_path(path)
 
 
 if __name__ == "__main__":
     # run_dot_2d_astar()
     # run_dot_2d_rrt()
     # run_dot_2d_rrt_star()
-    #run_2d_rrt_motion_planning()
-    run_2d_rrt_star()
+    # run_2d_rrt_motion_planning()
+    # run_2d_rrt_star()
     # run_2d_rrt_inspection_planning()
-    # run_3d()
+    run_3d()

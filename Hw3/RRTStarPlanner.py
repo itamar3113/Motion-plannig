@@ -1,6 +1,7 @@
 import numpy as np
 from RRTTree import RRTTree
 import time
+from tqdm import tqdm
 
 
 class RRTStarPlanner(object):
@@ -39,20 +40,24 @@ class RRTStarPlanner(object):
         self.tree.add_vertex(self.start)
         plan = []
         start_time = time.time()
-        while not self.tree.is_goal_exists(self.goal):
-            new_config = self.sample_random_config(self.goal_prob, self.goal)
+        for i in tqdm(range(self.max_itr)):
+            new_config = self.bb.sample_random_config(self.goal_prob, self.goal)
             _, neighbor = self.tree.get_nearest_config(new_config)
             self.extend(neighbor, new_config)
+            if i == 1999:
+                print(f'vertices {len(self.tree.vertices)}')
         end_time = time.time()
         print(f"Time: {end_time - start_time}")
         curr_id = self.tree.get_idx_for_config(self.goal)
-        print(f'cost: {self.tree.vertices[curr_id].cost}')
-        while curr_id != self.tree.get_idx_for_config(self.start):
+        if curr_id is not None:
+            print(f'cost: {self.tree.vertices[curr_id].cost}')
+            while curr_id != self.tree.get_idx_for_config(self.start):
+                plan.append(self.tree.vertices[curr_id].config)
+                curr_id = self.tree.edges[curr_id]
             plan.append(self.tree.vertices[curr_id].config)
-            curr_id = self.tree.edges[curr_id]
-        plan.append(self.tree.vertices[curr_id].config)
-        plan.reverse()
-        return np.array(plan), end_time - start_time, self.compute_cost(plan)
+            plan.reverse()
+            return np.array(plan)
+        return None
 
     def compute_cost(self, plan):
         cost = 0
@@ -92,5 +97,4 @@ class RRTStarPlanner(object):
                     id1 = self.tree.get_idx_for_config(near_config)
                     self.tree.add_edge(id1, id2, self.bb.compute_distance(near_config, new_config))
                     self.rewire(id2, new_config)
-                    if len(self.tree.vertices) % 10 == 0:
-                        print(len(self.tree.vertices))
+

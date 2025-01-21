@@ -15,7 +15,7 @@ class Visualize_UR(object):
         self.transform = transform
         self.bb = bb
         plt.ion()
-        plt.show()
+        #plt.show()
     
     def plot_links(self,end_efctors):
         for link_edge in end_efctors:

@@ -69,7 +69,7 @@ class BuildingBlocks3D(object):
                 radius = self.transform.sphere_radius[link]
                 if link != 'shoulder_link' and sphere[2] - radius < 0:
                     return True
-                if sphere[0] < 0.4:  # check if from same size
+                if sphere[0] + radius > 0.4:  # check if from same size
                     return True
                 for obstacle in self.env.obstacles:
                     if spheres_intersect(sphere, radius, obstacle, self.env.radius):
@@ -83,7 +83,6 @@ class BuildingBlocks3D(object):
         '''
         num_steps = int(np.linalg.norm(prev_conf - current_conf) / self.resolution)
         num_steps = max(num_steps, 2)
-        print(f'num_steps: {num_steps + 1}')
         for i in range(num_steps + 1):
             conf = prev_conf + (current_conf - prev_conf) * i / num_steps
             if self.config_validity_checker(conf):
