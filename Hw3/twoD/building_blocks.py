@@ -1,7 +1,7 @@
 import itertools
+
 import numpy as np
 from shapely.geometry import Point, LineString
-
 
 class BuildingBlocks2D(object):
 
@@ -31,22 +31,18 @@ class BuildingBlocks2D(object):
             total_cost += self.compute_distance(path[i], path[i + 1])
         return total_cost
 
-
     def compute_forward_kinematics(self, given_config):
         '''
         Compute the 2D position (x,y) of each one of the links (including end-effector) and return.
         @param given_config Given configuration.
         '''
         # positions are 2D points + angle (3 dimensions) for each of the links of the robot
-        cumulative_angle = 0
-        x, y = self.env.xlimit[0], self.env.ylimit[0]
-        res = np.zeros((self.dim, 2))
-        for i in range(self.dim):
-            cumulative_angle += given_config[i]
-            x += self.links[i] * np.cos(cumulative_angle)
-            y += self.links[i] * np.sin(cumulative_angle)
-            res[i] = (x, y)
-        return res
+        cumulative_angles = np.cumsum(given_config)
+        cos_angles = np.cos(cumulative_angles)
+        sin_angles = np.sin(cumulative_angles)
+        x = self.env.xlimit[0] + np.cumsum(self.links * cos_angles)
+        y = self.env.ylimit[0] + np.cumsum(self.links * sin_angles)
+        return np.column_stack((x, y))
 
     def compute_ee_angle(self, given_config):
         '''
@@ -72,17 +68,37 @@ class BuildingBlocks2D(object):
         else:
             return link_angle + given_angle
 
+    @staticmethod
+    def segments_intersect(seg1: np.ndarray, seg2: np.ndarray) -> bool:
+        p1, p2 = seg1
+        p3, p4 = seg2
+
+        # Computing the orientation of ordered triplets
+        def orientation(p: np.ndarray, q: np.ndarray, r: np.ndarray) -> int:
+            val = (q[1] - p[1]) * (r[0] - q[0]) - (q[0] - p[0]) * (r[1] - q[1])
+            if abs(val) < 1e-10:
+                return 0
+            return 1 if val > 0 else 2
+
+        o1 = orientation(p1, p2, p3)
+        o2 = orientation(p1, p2, p4)
+        o3 = orientation(p3, p4, p1)
+        o4 = orientation(p3, p4, p2)
+
+        return (o1 != o2) and (o3 != o4)
+
     def validate_robot(self, robot_positions):
         '''
         Verify that the given set of links positions does not contain self collisions.
         @param robot_positions Given links positions.
         '''
-        lines = [LineString([robot_positions[i], robot_positions[i + 1]]) for i in range(len(robot_positions) - 1)]
-        for i in range(len(lines) - 1):
-            if lines[i].equals(lines[i + 1]):
-                return False
-            for j in range(i + 2, len(lines)):
-                if lines[i].intersects(lines[j]):
+        segments = np.array([
+            [robot_positions[i], robot_positions[i + 1]]
+            for i in range(len(robot_positions) - 1)
+        ])
+        for i in range(len(segments) - 2):
+            for j in range(i + 2, len(segments)):
+                if self.segments_intersect(segments[i], segments[j]):
                     return False
         return True
 

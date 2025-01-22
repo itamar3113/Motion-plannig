@@ -1,6 +1,7 @@
 import operator
 import numpy as np
 
+
 class RRTTree(object):
 
     def __init__(self, bb, task="mp"):
@@ -97,7 +98,7 @@ class RRTTree(object):
         Return the edges in the tree as a list of pairs of states (positions)
         '''
 
-        return [[self.vertices[val].config,self.vertices[key].config] for (key, val) in self.edges.items()]
+        return [[self.vertices[val].config, self.vertices[key].config] for (key, val) in self.edges.items()]
 
     def get_k_nearest_neighbors(self, config, k):
         '''
@@ -111,7 +112,7 @@ class RRTTree(object):
 
         dists = np.array(dists)
         knn_ids = np.argpartition(dists, k)[:k]
-        #knn_dists = [dists[i] for i in knn_ids]
+        # knn_dists = [dists[i] for i in knn_ids]
 
         return knn_ids.tolist(), [self.vertices[vid].config for vid in knn_ids]
 
