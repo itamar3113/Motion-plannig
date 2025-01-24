@@ -72,7 +72,7 @@ def run_2d_rrt_inspection_planning():
 
     # execute plan
     plan = planner.plan()
-    # Visualizer(bb).visualize_plan(plan=plan, start=MAP_DETAILS["start"])
+    Visualizer(bb).visualize_plan(plan=plan, start=MAP_DETAILS["start"])
 
 
 def run_dot_2d_rrt_star():
@@ -207,5 +207,5 @@ if __name__ == "__main__":
     # run_dot_2d_rrt_star()
     # run_2d_rrt_motion_planning()
     # run_2d_rrt_star()
-    # run_2d_rrt_inspection_planning()
-    run_3d()
+    run_2d_rrt_inspection_planning()
+    # run_3d()
