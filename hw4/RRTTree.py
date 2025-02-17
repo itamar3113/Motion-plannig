@@ -1,8 +1,9 @@
 import operator
 import numpy
 
+
 class RRTTree(object):
-    
+
     def __init__(self, bb):
         self.bb = bb
         self.vertices = {}
@@ -27,7 +28,7 @@ class RRTTree(object):
         vid, vdist = min(enumerate(dists), key=operator.itemgetter(1))
 
         return vid, self.vertices[vid]
-            
+
     def GetKNN(self, config, k):
         '''
         Return k-nearest neighbors
@@ -43,7 +44,7 @@ class RRTTree(object):
         knnIDs = numpy.argpartition(dists, k)[:k]
         # knnDists = [dists[i] for i in knnIDs]
 
-        return knnIDs, None #[self.vertices[vid] for vid in knnIDs]
+        return knnIDs, None  # [self.vertices[vid] for vid in knnIDs]
 
     def AddVertex(self, config):
         '''
@@ -54,7 +55,7 @@ class RRTTree(object):
         vid = len(self.vertices)
         # self.vertices.append(config)
         # self.vertices[vid] = RRTVertex(state=config)#, real_state=real_conf)
-        self.vertices[vid] = RRTVertex(state=config)#, real_state=real_conf)
+        self.vertices[vid] = RRTVertex(state=config)  # , real_state=real_conf)
         return vid
 
     def AddEdge(self, sid, eid, edge_cost):
@@ -67,12 +68,30 @@ class RRTTree(object):
         self.vertices[eid].set_cost(cost=self.vertices[sid].cost + edge_cost)
         self.vertices[sid].children.add(self.vertices[eid])
 
+    def get_idx_for_config(self, config):
+        '''
+        Search for the vertex with the given config and return the index if exists
+        @param config Configuration to check if exists.
+        '''
+        valid_idxs = [v_idx for v_idx, v in self.vertices.items() if (v.config == config).all()]
+        if len(valid_idxs) > 0:
+            return valid_idxs[0]
+        return None
+
+    def is_goal_exists(self, config):
+        '''
+        Check if goal exists.
+        @param config Configuration to check if exists.
+        '''
+        goal_idx = self.get_idx_for_config(config=config)
+        if goal_idx is not None:
+            return True
+        return False
 
 
 class RRTVertex(object):
 
     def __init__(self, state, cost=0, inspected_points=None):
-
         self.state = state
         # self.real_state = real_state
         self.cost = cost

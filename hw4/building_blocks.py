@@ -11,6 +11,12 @@ import numpy as np
 import environment
 from environment import LocationType
 
+
+def spheres_intersect(center1, radius1, center2, radius2):
+    dist = np.linalg.norm(center1 - center2)
+    return dist <= radius1 + radius2
+
+
 class Building_Blocks(object):
     '''
     @param resolution determines the resolution of the local planner(how many intermidiate configurations to check)
@@ -28,34 +34,62 @@ class Building_Blocks(object):
 
         # self.TWO_PI = 2 * math.pi
 
-    def sample_random_config(self, goal_prob,  goal_conf) -> np.array:
+    def sample_random_config(self, goal_prob, goal_conf) -> np.array:
         """
         sample random configuration
         @param goal_conf - the goal configuration
         :param goal_prob - the probability that goal should be sampled
         """
-        # TODO: HW2 5.2.1
-        pass
-
+        if np.random.rand() < goal_prob:
+            return goal_conf
+        else:
+            limits = list(self.env.ur_params.mechamical_limits.values())
+            conf = np.zeros(len(limits))
+            for i in range(6):
+                conf[i] = np.random.uniform(limits[i][0], limits[i][1], 1)
+        return conf
 
     def config_validity_checker(self, conf) -> bool:
         """check for collision in given configuration, arm-arm and arm-obstacle
         return True if in collision
         @param conf - some configuration
         """
-        # TODO: HW2 5.2.2- Pay attention that function is a little different than in HW2
-        pass
+        # TODO update env? also why different from HW2?
+        all_spheres = self.env.arm_transforms[self.env.active_arm].conf2sphere_coords(conf)
+        for links in self.env.possible_link_collisions:
+            spheres1 = all_spheres[links[0]]
+            spheres2 = all_spheres[links[1]]
+            radius1 = self.env.arm_transforms[self.env.active_arm].sphere_radius[links[0]]
+            radius2 = self.env.arm_transforms[self.env.active_arm].sphere_radius[links[1]]
+            for center1 in spheres1:
+                for center2 in spheres2:
+                    if spheres_intersect(center1, radius1, center2, radius2):
+                        return True
 
+        for link, spheres in all_spheres.items():
+            for sphere in spheres:
+                radius = self.env.arm_transforms[self.env.active_arm].sphere_radius[link]
+                if link != 'shoulder_link' and sphere[2] - radius < 0:
+                    return True
+                if sphere[0] + radius > 0.4:  # TODO check if needed, what about other robot?
+                    return True
+                for obstacle in self.env.obstacles:
+                    if spheres_intersect(sphere, radius, obstacle, self.env.radius):
+                        return True
+        return False
 
     def edge_validity_checker(self, prev_conf, current_conf) -> bool:
         '''check for collisions between two configurations - return True if trasition is valid
         @param prev_conf - some configuration
         @param current_conf - current configuration
         '''
-        # TODO: HW2 5.2.4
-        pass
-
-
+        num_steps = int(np.linalg.norm(prev_conf - current_conf) / self.resolution)
+        num_steps = max(num_steps, 2)
+        for i in range(num_steps + 1):
+            conf = prev_conf + (current_conf - prev_conf) * i / num_steps
+            if self.config_validity_checker(conf):
+                return False
+        return True
 
     def compute_distance(self, conf1, conf2):
         '''
