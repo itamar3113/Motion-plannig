@@ -9,7 +9,7 @@ from kinematics import UR5e_PARAMS, UR5e_without_camera_PARAMS, Transform
 from planners import RRT_STAR
 from building_blocks import Building_Blocks
 from visualizer import Visualize_UR
-
+from inverse_kinematics import DH_matrix_UR5e, inverse_kinematic_solution, forward_kinematic_solution
 from environment import LocationType
 
 
@@ -25,6 +25,7 @@ class Gripper(str, Enum):
     OPEN = "OPEN",
     CLOSE = "CLOSE"
     STAY = "STAY"
+
 
 def get_shifted_cubes_to_real_world(cubes_in_original_area_pre_shift, cubes_already_moved_pre_shift, env):
     cubes_already_moved = cubes_in_original_area = []
@@ -60,7 +61,8 @@ class Experiment:
         # result dict
         self.experiment_result = []
 
-    def push_step_info_into_single_cube_passing_data(self, description, active_id, command, static_conf, path, cubes, gripper_pre, gripper_post):
+    def push_step_info_into_single_cube_passing_data(self, description, active_id, command, static_conf, path, cubes,
+                                                     gripper_pre, gripper_post):
         self.experiment_result[-1]["description"].append(description)
         self.experiment_result[-1]["active_id"].append(active_id)
         self.experiment_result[-1]["command"].append(command)
@@ -70,8 +72,9 @@ class Experiment:
         self.experiment_result[-1]["gripper_pre"].append(gripper_pre)
         self.experiment_result[-1]["gripper_post"].append(gripper_post)
 
-    def plan_single_arm(self, planner, start_conf, goal_conf, description, active_id, command, static_arm_conf, cubes_real,
-                            gripper_pre, gripper_post):
+    def plan_single_arm(self, planner, start_conf, goal_conf, description, active_id, command, static_arm_conf,
+                        cubes_real,
+                        gripper_pre, gripper_post):
         path, cost = planner.find_path(start_conf=start_conf,
                                        goal_conf=goal_conf,
                                        manipulator=active_id)
@@ -87,7 +90,7 @@ class Experiment:
 
     def plan_single_cube_passing(self, cube_i, cubes,
                                  left_arm_start, right_arm_start,
-                                 env, bb, planner, left_arm_transform, right_arm_transform,):
+                                 env, bb, planner, left_arm_transform, right_arm_transform, ):
         # add a new step entry
         single_cube_passing_info = {
             "description": [],  # text to be displayed on the animation
@@ -109,14 +112,15 @@ class Experiment:
         # fix obstacles and update env
         cubes_already_moved_pre_shift = cubes[0:cube_i]
         cubes_in_original_area_pre_shift = cubes[cube_i:]
-        cubes_real = get_shifted_cubes_to_real_world(cubes_in_original_area_pre_shift, cubes_already_moved_pre_shift, env)
+        cubes_real = get_shifted_cubes_to_real_world(cubes_in_original_area_pre_shift, cubes_already_moved_pre_shift,
+                                                     env)
 
         update_environment(env, active_arm, left_arm_start, cubes_real)
 
-        cube_approach = #TODO 2: find a conf for the arm to get the correct cube
+        cube_approach = 0  # TODO 2: find a conf for the arm to get the correct cube
         # plan the path
         self.plan_single_arm(planner, right_arm_start, cube_approach, description, active_arm, "move",
-                                 left_arm_start, cubes_real, Gripper.OPEN, Gripper.STAY)
+                             left_arm_start, cubes_real, Gripper.OPEN, Gripper.STAY)
         ###############################################################################
 
         self.push_step_info_into_single_cube_passing_data("picking up a cube: go down",
@@ -128,11 +132,70 @@ class Experiment:
                                                           Gripper.STAY,
                                                           Gripper.CLOSE)
 
-        return None, None #TODO 3: return left and right end position, so it can be the start position for the next interation.
+        return None, None  # TODO 3: return left and right end position, so it can be the start position for the next interation.
 
+    @staticmethod
+    def transformation_matrix(location, angles):
+        x, y, z = location
+        alpha, beta, gamma = angles
+        return np.matrix([
+            [np.cos(beta) * np.cos(gamma), np.sin(alpha) * np.sin(beta) * np.cos(gamma) - np.cos(alpha) * np.sin(gamma),
+             np.cos(alpha) * np.sin(beta) * np.cos(gamma) + np.sin(alpha) * np.sin(gamma), x]
+            ,
+            [np.cos(beta) * np.sin(gamma), np.sin(alpha) * np.sin(beta) * np.sin(gamma) + np.cos(alpha) * np.cos(gamma),
+             np.cos(alpha) * np.sin(beta) * np.sin(gamma) - np.sin(alpha) * np.cos(gamma), y]
+            ,
+            [-np.sin(beta), np.sin(alpha) * np.cos(beta), np.cos(alpha) * np.cos(beta), z]
+            ,
+            [0, 0, 0, 1]
+        ])
+
+    @staticmethod
+    def sol_from_ik(ik, bb, location):
+        candidate_sols = []
+        for i in range(ik.shape[1]):
+            candidate_sols.append(ik[:, i])
+        candidate_sols = np.array(candidate_sols)
+        # check for collisions and angles limits
+        sols = []
+        for candidate_sol in candidate_sols:
+            if bb.config_validity_checker(candidate_sol):
+                continue
+            for idx, angle in enumerate(candidate_sol):
+                if 2 * np.pi > angle > np.pi:
+                    candidate_sol[idx] = -(2 * np.pi - angle)
+                if -2 * np.pi < angle < -np.pi:
+                    candidate_sol[idx] = -(2 * np.pi + angle)
+            if np.max(candidate_sol) > np.pi or np.min(
+                    candidate_sol) < -np.pi:
+                continue
+            sols.append(candidate_sol)
+        # verify solution:
+        final_sol = []
+        for sol in sols:
+            transform = forward_kinematic_solution(
+                DH_matrix_UR5e, sol)
+            diff = np.linalg.norm(np.array([transform[0, 3],
+                                            transform[1, 3], transform[2, 3]]) - np.array(location))
+            if diff < 0.05:
+                final_sol.append(sol)
+        final_sol = np.array(final_sol)
+        return final_sol[0]
 
     def plan_experiment(self):
         start_time = time.time()
+
+        right_location = (1.5, 2, 0.5)
+        left_location = (1.4, 2, 0.5)
+
+        right_angles = (np.pi, np.pi / 2, np.pi / 2)
+        left_angles = (0, -np.pi / 2, -np.pi / 2)
+
+        right_transform = self.transformation_matrix(right_location, right_angles)
+        left_transform = self.transformation_matrix(left_location, left_angles)
+
+        right_IKS = inverse_kinematic_solution(DH_matrix_UR5e, right_transform)
+        left_IKS = inverse_kinematic_solution(DH_matrix_UR5e, left_transform)
 
         exp_id = 2
         ur_params_right = UR5e_PARAMS(inflation_factor=1.0)
@@ -140,7 +203,8 @@ class Experiment:
 
         env = Environment(ur_params=ur_params_right)
 
-        transform_right_arm = Transform(ur_params=ur_params_right, ur_location=env.arm_base_location[LocationType.RIGHT])
+        transform_right_arm = Transform(ur_params=ur_params_right,
+                                        ur_location=env.arm_base_location[LocationType.RIGHT])
         transform_left_arm = Transform(ur_params=ur_params_left, ur_location=env.arm_base_location[LocationType.LEFT])
 
         env.arm_transforms[LocationType.RIGHT] = transform_right_arm
@@ -158,19 +222,20 @@ class Experiment:
         # cubes
         if self.cubes is None:
             self.cubes = self.get_cubes_for_experiment(exp_id)
-
         log(msg="calculate meeting point for the test.")
-
-        self.right_arm_meeting_safety = None # TODO 1
-        self.left_arm_meeting_safety = None # TODO 1
+        update_environment(env, LocationType.RIGHT, self.left_arm_home, get_shifted_cubes_to_real_world(self.cubes, [], env))
+        self.right_arm_meeting_safety = self.sol_from_ik(right_IKS, bb, right_location)
+        env.set_active_arm(LocationType.LEFT)
+        self.left_arm_meeting_safety = self.sol_from_ik(left_IKS, bb, left_location)
 
         log(msg="start planning the experiment.")
         left_arm_start = self.left_arm_home
         right_arm_start = self.right_arm_home
         for i in range(len(self.cubes)):
-            left_arm_start, right_arm_start = self.plan_single_cube_passing(i, self.cubes, left_arm_start, right_arm_start,
-                                              env, bb, rrt_star_planner, left_arm_start, right_arm_start)
-
+            left_arm_start, right_arm_start = self.plan_single_cube_passing(i, self.cubes, left_arm_start,
+                                                                            right_arm_start,
+                                                                            env, bb, rrt_star_planner, left_arm_start,
+                                                                            right_arm_start)
 
         t2 = time.time()
         print(f"It took t={t2 - start_time} seconds")

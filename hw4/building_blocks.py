@@ -31,6 +31,15 @@ class Building_Blocks(object):
         # testing variables
         self.t_curr = 0
         self.special_bias = special_bias
+        self.possible_link_collisions = [['shoulder_link', 'forearm_link'],
+                                         ['shoulder_link', 'wrist_1_link'],
+                                         ['shoulder_link', 'wrist_2_link'],
+                                         ['shoulder_link', 'wrist_3_link'],
+                                         ['upper_arm_link', 'wrist_1_link'],
+                                         ['upper_arm_link', 'wrist_2_link'],
+                                         ['upper_arm_link', 'wrist_3_link'],
+                                         ['forearm_link', 'wrist_2_link'],
+                                         ['forearm_link', 'wrist_3_link']]
 
         # self.TWO_PI = 2 * math.pi
 
@@ -56,7 +65,7 @@ class Building_Blocks(object):
         """
         # TODO update env? also why different from HW2?
         all_spheres = self.env.arm_transforms[self.env.active_arm].conf2sphere_coords(conf)
-        for links in self.env.possible_link_collisions:
+        for links in self.possible_link_collisions:
             spheres1 = all_spheres[links[0]]
             spheres2 = all_spheres[links[1]]
             radius1 = self.env.arm_transforms[self.env.active_arm].sphere_radius[links[0]]
@@ -64,15 +73,12 @@ class Building_Blocks(object):
             for center1 in spheres1:
                 for center2 in spheres2:
                     if spheres_intersect(center1, radius1, center2, radius2):
-                        return True
+                        #return True
+                        print('a')
 
         for link, spheres in all_spheres.items():
             for sphere in spheres:
                 radius = self.env.arm_transforms[self.env.active_arm].sphere_radius[link]
-                if link != 'shoulder_link' and sphere[2] - radius < 0:
-                    return True
-                if sphere[0] + radius > 0.4:  # TODO check if needed, what about other robot?
-                    return True
                 for obstacle in self.env.obstacles:
                     if spheres_intersect(sphere, radius, obstacle, self.env.radius):
                         return True

@@ -157,7 +157,8 @@ class Transform(object):
             global_sphere_coords[frame] = []
             for i in range(len(self.local_sphere_coords[frame])):
                 current_global_coords = self.location + np.matmul(trans_matrix[frame], self.local_sphere_coords[frame][i].T)
-                global_sphere_coords[frame].append(current_global_coords)
+                global_sphere_coords[frame].append(current_global_coords[:-1])
+            global_sphere_coords[frame] = np.array(global_sphere_coords[frame])
         return global_sphere_coords
     
     def conf2sphere_coords(self, conf):
