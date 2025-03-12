@@ -23,11 +23,11 @@ class Building_Blocks(object):
     @param p_bias determines the probability of the sample function to return the goal configuration
     '''
 
-    def __init__(self, env, resolution=0.1, p_bias=0.05, special_bias=False):
+    def __init__(self, env, resolution=0.1, p_bias=0.2, special_bias=False):
         self.env = env
         self.resolution = resolution
         self.p_bias = p_bias
-        self.cost_weights = np.array([0.4, 0.3, 0.2, 0.1, 0.07])
+        self.cost_weights = np.array([0.4, 0.3, 0.2, 0.1, 0.07, 0.05])
         # testing variables
         self.t_curr = 0
         self.special_bias = special_bias
@@ -54,9 +54,11 @@ class Building_Blocks(object):
         else:
             limits = list(self.env.ur_params.mechamical_limits.values())
             conf = np.zeros(len(limits))
-            for i in range(6):
-                conf[i] = np.random.uniform(limits[i][0], limits[i][1], 1)
-        return conf
+            while True:
+                for i in range(6):
+                    conf[i] = np.random.uniform(limits[i][0], limits[i][1], 1)
+                    if self.config_validity_checker(conf):
+                        return conf
 
     def config_validity_checker(self, conf) -> bool:
         """check for collision in given configuration, arm-arm and arm-obstacle
@@ -73,8 +75,7 @@ class Building_Blocks(object):
             for center1 in spheres1:
                 for center2 in spheres2:
                     if spheres_intersect(center1, radius1, center2, radius2):
-                        #return True
-                        print('a')
+                        return True
 
         for link, spheres in all_spheres.items():
             for sphere in spheres:

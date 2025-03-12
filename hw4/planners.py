@@ -4,6 +4,7 @@ import time
 import environment
 from RRTTree import RRTTree
 
+
 class RRT_STAR(object):
     def __init__(self, max_step_size, max_itr, bb):
         self.max_step_size = max_step_size
@@ -17,17 +18,20 @@ class RRT_STAR(object):
         # self.TWO_PI = 2 * math.pi
         self.last_cost = -1
         self.last_ratio = 1
-        self.K = 10
+        self.K = 5
 
     def find_path(self, start_conf, goal_conf):
         self.tree.AddVertex(start_conf)
         plan = []
         start_time = time.time()
         iter_count = 0
-        while iter_count < self.itr_no_goal_limit or not self.tree.is_goal_exists(goal_conf):
+        while iter_count < self.itr_no_goal_limit:
             new_config = self.bb.sample_random_config(self.bb.p_bias, goal_conf)
             _, neighbor = self.tree.GetNearestVertex(new_config)
-            self.extend(neighbor, new_config)
+            new_config = self.extend(neighbor.state, new_config)
+            if new_config is not None and np.array_equal(new_config, goal_conf):
+                self.tree.goal_exist = True
+                break
             iter_count += 1
         end_time = time.time()
         print(f"Time: {end_time - start_time}")
@@ -35,11 +39,11 @@ class RRT_STAR(object):
         if curr_id is not None:
             print(f'cost: {self.tree.vertices[curr_id].cost}')
             while curr_id != self.tree.get_idx_for_config(start_conf):
-                plan.append(self.tree.vertices[curr_id].config)
+                plan.append(self.tree.vertices[curr_id].state)
                 curr_id = self.tree.edges[curr_id]
-            plan.append(self.tree.vertices[curr_id].config)
+            plan.append(self.tree.vertices[curr_id].state)
             plan.reverse()
-            return np.array(plan)
+            return np.array(plan), self.tree.vertices[curr_id].cost
         return None
 
     def rewire(self, new_id, new_config):
@@ -61,15 +65,17 @@ class RRT_STAR(object):
         @param x_random - random sampled configuration
         return the extended configuration
         '''
-        if self.tree.get_idx_for_config(x_random) is None:
-            dis_to_rand = self.bb.compute_distance(x_near, x_random)
-            if dis_to_rand < self.max_step_size:
-                new_config = x_random
-            else:
-                direction = x_random - x_near
-                new_config = x_near + direction / dis_to_rand * self.max_step_size
-            if self.bb.edge_validity_checker(x_near, new_config):
-                id2 = self.tree.AddVertex(new_config)
-                id1 = self.tree.get_idx_for_config(x_near)
-                self.tree.AddEdge(id1, id2, self.bb.compute_distance(x_near, new_config))
-                self.rewire(id2, new_config)
+        dis_to_rand = self.bb.compute_distance(x_near, x_random)
+        if dis_to_rand < self.max_step_size:
+            new_config = x_random
+        else:
+            direction = x_random - x_near
+            new_config = x_near + direction / dis_to_rand * self.max_step_size
+        if self.bb.edge_validity_checker(x_near, new_config):
+            id2 = self.tree.AddVertex(new_config)
+            id1 = self.tree.get_idx_for_config(x_near)
+            self.tree.AddEdge(id1, id2, self.bb.compute_distance(x_near, new_config))
+            self.rewire(id2, new_config)
+            print(len(self.tree.vertices))
+            return new_config
+        return None

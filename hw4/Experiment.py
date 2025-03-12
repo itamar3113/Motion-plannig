@@ -76,8 +76,7 @@ class Experiment:
                         cubes_real,
                         gripper_pre, gripper_post):
         path, cost = planner.find_path(start_conf=start_conf,
-                                       goal_conf=goal_conf,
-                                       manipulator=active_id)
+                                       goal_conf=goal_conf)  # add manipulator as argument?
         # create the arm plan
         self.push_step_info_into_single_cube_passing_data(description,
                                                           active_id,
@@ -116,8 +115,12 @@ class Experiment:
                                                      env)
 
         update_environment(env, active_arm, left_arm_start, cubes_real)
-
-        cube_approach = 0  # TODO 2: find a conf for the arm to get the correct cube
+        cube_location = cubes[cube_i]
+        pickup_location = (cube_location[0], cube_location[1], cube_location[2] + 0.15)
+        pickup_angle = (0, np.pi, 0)
+        pickup_transform = self.transformation_matrix(pickup_location, pickup_angle)
+        pickup_iks = inverse_kinematic_solution(DH_matrix_UR5e, pickup_transform)
+        cube_approach = self.sol_from_ik(pickup_iks, bb, pickup_location)
         # plan the path
         self.plan_single_arm(planner, right_arm_start, cube_approach, description, active_arm, "move",
                              left_arm_start, cubes_real, Gripper.OPEN, Gripper.STAY)
@@ -128,9 +131,45 @@ class Experiment:
                                                           "movel",
                                                           list(self.left_arm_home),
                                                           [0, 0, -0.14],
-                                                          [],
+                                                          [list(cube) for cube in cubes_real],
                                                           Gripper.STAY,
                                                           Gripper.CLOSE)
+
+        self.push_step_info_into_single_cube_passing_data("picking up a cube: go up",
+                                                          LocationType.RIGHT,
+                                                          "movel",
+                                                          list(self.left_arm_home),
+                                                          [0, 0, 0.14],
+                                                          [list(cube) for cube in cubes_real],
+                                                          Gripper.STAY,
+                                                          Gripper.STAY)
+
+        self.plan_single_arm(planner, cube_approach, self.right_arm_meeting_safety,
+                             "right_arm => [cube pickup -> meeting point], left_arm static", active_arm, "move",
+                             left_arm_start, cubes_real, Gripper.STAY, Gripper.STAY)
+
+        active_arm = LocationType.LEFT
+        update_environment(env, active_arm, self.right_arm_meeting_safety, cubes_real)
+
+        self.plan_single_arm(planner, self.left_arm_home, self.left_arm_home,
+                             "left_arm => [home -> meeting point], right_arm static", active_arm, 'move',
+                             self.right_arm_meeting_safety, cubes_real, Gripper.STAY, Gripper.OPEN)
+
+        self.push_step_info_into_single_cube_passing_data(
+            "Left arm grip", active_arm, "movel",
+            self.right_arm_meeting_safety.tolist(), [0, 0, -0.05],
+            [list(c) for c in cubes_real],
+            Gripper.STAY, Gripper.CLOSE
+        )
+
+        self.push_step_info_into_single_cube_passing_data(
+            "Right arm release", LocationType.RIGHT, "movel",
+            self.left_arm_meeting_safety.tolist(), [0, 0, 0],
+            [list(c) for c in cubes_real],
+            Gripper.STAY, Gripper.OPEN
+        )
+
+
 
         return None, None  # TODO 3: return left and right end position, so it can be the start position for the next interation.
 
@@ -171,25 +210,27 @@ class Experiment:
                 continue
             sols.append(candidate_sol)
         # verify solution:
+        min_diff = 0.05
         final_sol = []
         for sol in sols:
             transform = forward_kinematic_solution(
                 DH_matrix_UR5e, sol)
             diff = np.linalg.norm(np.array([transform[0, 3],
                                             transform[1, 3], transform[2, 3]]) - np.array(location))
-            if diff < 0.05:
-                final_sol.append(sol)
-        final_sol = np.array(final_sol)
-        return final_sol[0]
+            if diff < min_diff:
+                min_diff = diff
+                final_sol = sol
+        final_sol = np.array(final_sol).flatten()
+        return final_sol
 
     def plan_experiment(self):
         start_time = time.time()
 
-        right_location = (1.5, 2, 0.5)
-        left_location = (1.4, 2, 0.5)
+        right_location = (0.8, 0.6, 0.25)
+        left_location = (0.8, 0.6, 0.20)
 
-        right_angles = (np.pi, np.pi / 2, np.pi / 2)
-        left_angles = (0, -np.pi / 2, -np.pi / 2)
+        right_angles = (0, -np.pi / 2, -np.pi / 2)
+        left_angles = (np.pi, np.pi / 2, np.pi / 2)
 
         right_transform = self.transformation_matrix(right_location, right_angles)
         left_transform = self.transformation_matrix(left_location, left_angles)
@@ -223,9 +264,11 @@ class Experiment:
         if self.cubes is None:
             self.cubes = self.get_cubes_for_experiment(exp_id)
         log(msg="calculate meeting point for the test.")
-        update_environment(env, LocationType.RIGHT, self.left_arm_home, get_shifted_cubes_to_real_world(self.cubes, [], env))
+        update_environment(env, LocationType.RIGHT, self.left_arm_home,
+                           get_shifted_cubes_to_real_world(self.cubes, [], env))
         self.right_arm_meeting_safety = self.sol_from_ik(right_IKS, bb, right_location)
-        env.set_active_arm(LocationType.LEFT)
+        update_environment(env, LocationType.LEFT, self.right_arm_meeting_safety,
+                           get_shifted_cubes_to_real_world(self.cubes, [], env))
         self.left_arm_meeting_safety = self.sol_from_ik(left_IKS, bb, left_location)
 
         log(msg="start planning the experiment.")

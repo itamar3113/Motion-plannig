@@ -10,8 +10,9 @@ from numpy import linalg
 from math import pi, cos, sin, atan2, acos, sqrt, asin
 
 from environment import LocationType
+
 # tool_length = 0.135 # [m]
-tool_length = 0.2 # [m]
+tool_length = 0.2  # [m]
 
 DH_matrix_UR3e = np.matrix([[0, pi / 2.0, 0.15185],
                             [-0.24355, 0, 0],
@@ -92,8 +93,7 @@ def forward_kinematic_solution(DH_matrix, edges=np.matrix([[0], [0], [0], [0], [
     return answer
 
 
-def inverse_kinematic_solution(DH_matrix, transform_matrix,):
-
+def inverse_kinematic_solution(DH_matrix, transform_matrix, ):
     theta = np.matrix(np.zeros((6, 8)))
     # theta 1
     T06 = transform_matrix
@@ -106,14 +106,14 @@ def inverse_kinematic_solution(DH_matrix, transform_matrix,):
 
     # theta 5
     for i in {0, 4}:
-            th5cos = (T06[0, 3] * sin(theta[0, i]) - T06[1, 3] * cos(theta[0, i]) - (
-                    DH_matrix[1, 2] + DH_matrix[3, 2] + DH_matrix[2, 2])) / DH_matrix[5, 2]
-            if 1 >= th5cos >= -1:
-                th5 = acos(th5cos)
-            else:
-                th5 = 0
-            theta[4, i:i + 2] = th5
-            theta[4, i + 2:i + 4] = -th5
+        th5cos = (T06[0, 3] * sin(theta[0, i]) - T06[1, 3] * cos(theta[0, i]) - (
+                DH_matrix[1, 2] + DH_matrix[3, 2] + DH_matrix[2, 2])) / DH_matrix[5, 2]
+        if 1 >= th5cos >= -1:
+            th5 = acos(th5cos)
+        else:
+            th5 = 0
+        theta[4, i:i + 2] = th5
+        theta[4, i + 2:i + 4] = -th5
     # theta 6
     for i in {0, 2, 4, 6}:
         # if sin(theta[4, i]) == 0:
