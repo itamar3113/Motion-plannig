@@ -8,6 +8,7 @@ class RRTTree(object):
         self.bb = bb
         self.vertices = {}
         self.edges = dict()
+        self.goal_exist = False
 
     def GetRootID(self):
         '''
@@ -20,7 +21,7 @@ class RRTTree(object):
         Returns the nearest state ID in the tree.
         @param config Sampled configuration.
         '''
-        dists = [self.bb.edge_cost(config, self.vertices[v].state) for v in self.vertices]
+        dists = [self.bb.compute_distance(config, self.vertices[v].state) for v in self.vertices]
         # for v in self.vertices:
         #     v_node = self.vertices[v]
         #     dists.append(self.bb.edge_cost(config, v_node.state))
@@ -36,7 +37,7 @@ class RRTTree(object):
         @param k Number of nearest neighbors to retrieve.
         '''
         # dists = []
-        dists = [self.bb.edge_cost(config, self.vertices[vid].state) for vid in self.vertices]
+        dists = [self.bb.compute_distance(config, self.vertices[vid].state) for vid in self.vertices]
         # for id in self.vertices:
         #     dists.append(self.bb.edge_cost(config, self.vertices[id].state))
 
@@ -44,7 +45,7 @@ class RRTTree(object):
         knnIDs = numpy.argpartition(dists, k)[:k]
         # knnDists = [dists[i] for i in knnIDs]
 
-        return knnIDs, None  # [self.vertices[vid] for vid in knnIDs]
+        return knnIDs, [self.vertices[vid].state for vid in knnIDs]
 
     def AddVertex(self, config):
         '''
@@ -73,7 +74,7 @@ class RRTTree(object):
         Search for the vertex with the given config and return the index if exists
         @param config Configuration to check if exists.
         '''
-        valid_idxs = [v_idx for v_idx, v in self.vertices.items() if (v.config == config).all()]
+        valid_idxs = [v_idx for v_idx, v in self.vertices.items() if (v.state == config).all()]
         if len(valid_idxs) > 0:
             return valid_idxs[0]
         return None

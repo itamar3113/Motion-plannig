@@ -155,6 +155,8 @@ class Experiment:
                              "left_arm => [home -> meeting point], right_arm static", active_arm, 'move',
                              self.right_arm_meeting_safety, cubes_real, Gripper.STAY, Gripper.OPEN)
 
+        update_environment(env, active_arm, self.right_arm_meeting_safety, cubes_real)
+
         self.push_step_info_into_single_cube_passing_data(
             "Left arm grip", active_arm, "movel",
             self.right_arm_meeting_safety.tolist(), [0, 0, -0.05],
@@ -169,9 +171,44 @@ class Experiment:
             Gripper.STAY, Gripper.OPEN
         )
 
+        description = "left_arm => [meeting point -> Zone B], right_arm static"
+        active_arm = LocationType.LEFT
 
+        #TODO check th location
+        zone_b_position = (env.cube_area_corner[LocationType.LEFT][0] + 0.2,
+                           env.cube_area_corner[LocationType.LEFT][1] + 0.2,
+                           0.15)  # Position in Zone B
+        zone_b_angles = (0, np.pi, 0)
+        zone_b_transform = self.transformation_matrix(zone_b_position, zone_b_angles)
+        zone_b_IKS = inverse_kinematic_solution(DH_matrix_UR5e, zone_b_transform)
+        zone_b_conf = self.sol_from_ik(zone_b_IKS, bb, zone_b_position)
 
-        return None, None  # TODO 3: return left and right end position, so it can be the start position for the next interation.
+        self.plan_single_arm(planner, self.left_arm_meeting_safety, zone_b_conf, description, active_arm, "move",
+                             self.right_arm_meeting_safety, cubes_real, Gripper.STAY, Gripper.STAY)
+
+        self.push_step_info_into_single_cube_passing_data(
+            "left_arm => [placing cube], right_arm static",
+            active_arm,
+            "movel",
+            self.right_arm_meeting_safety,
+            [0, 0, -0.1],
+            [list(cube) for cube in cubes_real],
+            Gripper.STAY,
+            Gripper.OPEN
+        )
+
+        self.push_step_info_into_single_cube_passing_data(
+            "left_arm => [moving up], right_arm static",
+            active_arm,
+            "movel",
+            self.right_arm_meeting_safety,
+            [0, 0, 0.1],  # Move up
+            [list(cube) for cube in cubes_real],
+            Gripper.STAY,
+            Gripper.STAY
+        )
+
+        return zone_b_conf, self.right_arm_meeting_safety  # TODO 3: return left and right end position, so it can be the start position for the next interation.
 
     @staticmethod
     def transformation_matrix(location, angles):

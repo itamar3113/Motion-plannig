@@ -21,6 +21,7 @@ class RRT_STAR(object):
         self.K = 5
 
     def find_path(self, start_conf, goal_conf):
+        self.tree.__init__(self.bb)
         self.tree.AddVertex(start_conf)
         plan = []
         start_time = time.time()
