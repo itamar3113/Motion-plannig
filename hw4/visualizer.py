@@ -198,7 +198,7 @@ class Visualize_UR(object):
         self.plt_i += 1
 
     def animate_by_pngs(self):
-        pattern = r'.*\/plot\d+\.png'
+        pattern = r'.*\\plot\d+\.png'
         dir_path = r"./outputs/"
         files = glob.glob(dir_path + "*")
         matched_files = [file for file in files if re.match(pattern, file)]

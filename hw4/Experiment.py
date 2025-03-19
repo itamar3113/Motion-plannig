@@ -28,7 +28,8 @@ class Gripper(str, Enum):
 
 
 def get_shifted_cubes_to_real_world(cubes_in_original_area_pre_shift, cubes_already_moved_pre_shift, env):
-    cubes_already_moved = cubes_in_original_area = []
+    cubes_already_moved = []
+    cubes_in_original_area = []
     for cube in cubes_in_original_area_pre_shift:
         cubes_in_original_area.append(cube + env.cube_area_corner[LocationType.RIGHT])
     for cube in cubes_already_moved_pre_shift:
@@ -103,6 +104,7 @@ class Experiment:
         }
         self.experiment_result.append(single_cube_passing_info)
         ###############################################################################
+
         # set variables
         description = "right_arm => [start -> cube pickup], left_arm static"
         active_arm = LocationType.RIGHT
@@ -115,9 +117,9 @@ class Experiment:
                                                      env)
 
         update_environment(env, active_arm, left_arm_start, cubes_real)
-        cube_location = cubes[cube_i]
-        pickup_location = (cube_location[0], cube_location[1], cube_location[2] + 0.15)
-        pickup_angle = (0, np.pi, 0)
+        pickup_location = np.array(cubes_real[cube_i]) - np.array(env.arm_base_location[active_arm]) + np.array(
+            [0, 0, 0.14])
+        pickup_angle = (0, -np.pi, 0)
         pickup_transform = self.transformation_matrix(pickup_location, pickup_angle)
         pickup_iks = inverse_kinematic_solution(DH_matrix_UR5e, pickup_transform)
         cube_approach = self.sol_from_ik(pickup_iks, bb, pickup_location)
@@ -130,7 +132,7 @@ class Experiment:
                                                           LocationType.RIGHT,
                                                           "movel",
                                                           list(self.left_arm_home),
-                                                          [0, 0, -0.14],
+                                                          [0, 0, -0.12],
                                                           [list(cube) for cube in cubes_real],
                                                           Gripper.STAY,
                                                           Gripper.CLOSE)
@@ -139,7 +141,7 @@ class Experiment:
                                                           LocationType.RIGHT,
                                                           "movel",
                                                           list(self.left_arm_home),
-                                                          [0, 0, 0.14],
+                                                          [0, 0, 0.12],
                                                           [list(cube) for cube in cubes_real],
                                                           Gripper.STAY,
                                                           Gripper.STAY)
@@ -155,14 +157,14 @@ class Experiment:
                              "left_arm => [home -> meeting point], right_arm static", active_arm, 'move',
                              self.right_arm_meeting_safety, cubes_real, Gripper.STAY, Gripper.OPEN)
 
-        update_environment(env, active_arm, self.right_arm_meeting_safety, cubes_real)
-
         self.push_step_info_into_single_cube_passing_data(
             "Left arm grip", active_arm, "movel",
-            self.right_arm_meeting_safety.tolist(), [0, 0, -0.05],
+            self.right_arm_meeting_safety.tolist(), [0.08, 0, 0],
             [list(c) for c in cubes_real],
             Gripper.STAY, Gripper.CLOSE
         )
+
+        update_environment(env, active_arm, self.right_arm_meeting_safety, cubes_real)
 
         self.push_step_info_into_single_cube_passing_data(
             "Right arm release", LocationType.RIGHT, "movel",
@@ -173,42 +175,50 @@ class Experiment:
 
         description = "left_arm => [meeting point -> Zone B], right_arm static"
         active_arm = LocationType.LEFT
+        update_environment(env, active_arm, self.right_arm_meeting_safety, cubes_real)
 
-        #TODO check th location
-        zone_b_position = (env.cube_area_corner[LocationType.LEFT][0] + 0.2,
-                           env.cube_area_corner[LocationType.LEFT][1] + 0.2,
-                           0.15)  # Position in Zone B
-        zone_b_angles = (0, np.pi, 0)
-        zone_b_transform = self.transformation_matrix(zone_b_position, zone_b_angles)
-        zone_b_IKS = inverse_kinematic_solution(DH_matrix_UR5e, zone_b_transform)
-        zone_b_conf = self.sol_from_ik(zone_b_IKS, bb, zone_b_position)
+        offset = (1 + cube_i) * 0.06
+        putting_position = np.array(
+            [env.cube_area_corner[LocationType.LEFT][0] + offset, env.cube_area_corner[active_arm][1] + 0.1, 0])
+        putting_position = putting_position - np.array(env.arm_base_location[active_arm]) + np.array([0, 0, 0.14])
 
-        self.plan_single_arm(planner, self.left_arm_meeting_safety, zone_b_conf, description, active_arm, "move",
+        putting_angles = (0, np.pi, 0)
+        putting_transform = self.transformation_matrix(putting_position, putting_angles)
+        putting_IKS = inverse_kinematic_solution(DH_matrix_UR5e, putting_transform)
+        putting_conf = self.sol_from_ik(putting_IKS, bb, putting_position)
+
+        self.plan_single_arm(planner, self.left_arm_meeting_safety, putting_conf, description, active_arm, "move",
                              self.right_arm_meeting_safety, cubes_real, Gripper.STAY, Gripper.STAY)
 
         self.push_step_info_into_single_cube_passing_data(
             "left_arm => [placing cube], right_arm static",
             active_arm,
             "movel",
-            self.right_arm_meeting_safety,
-            [0, 0, -0.1],
+            self.right_arm_meeting_safety.tolist(),
+            [0, 0, -0.14],
             [list(cube) for cube in cubes_real],
             Gripper.STAY,
             Gripper.OPEN
         )
 
+        offset = (1 + cube_i) * 0.06
+        cubes[cube_i] = [offset, 0.1, 0.02]
+
+        putting_conf = self.left_arm_meeting_safety
         self.push_step_info_into_single_cube_passing_data(
             "left_arm => [moving up], right_arm static",
             active_arm,
             "movel",
-            self.right_arm_meeting_safety,
-            [0, 0, 0.1],  # Move up
+            self.right_arm_meeting_safety.tolist(),
+            [0, 0, 0.14],  # Move up
             [list(cube) for cube in cubes_real],
             Gripper.STAY,
             Gripper.STAY
         )
 
-        return zone_b_conf, self.right_arm_meeting_safety  # TODO 3: return left and right end position, so it can be the start position for the next interation.
+        update_environment(env, active_arm, self.right_arm_meeting_safety, cubes_real)
+
+        return putting_conf, self.right_arm_meeting_safety
 
     @staticmethod
     def transformation_matrix(location, angles):
@@ -263,8 +273,15 @@ class Experiment:
     def plan_experiment(self):
         start_time = time.time()
 
-        right_location = (0.8, 0.6, 0.25)
-        left_location = (0.8, 0.6, 0.20)
+        ur_params_right = UR5e_PARAMS(inflation_factor=1.0)
+        ur_params_left = UR5e_without_camera_PARAMS(inflation_factor=1.0)
+
+        env = Environment(ur_params=ur_params_right)
+
+        middle_point_diff = (np.array(env.arm_base_location[LocationType.RIGHT]) - np.array(
+            env.arm_base_location[LocationType.LEFT])) / 2
+        right_location = np.array([0, 0, 0.5]) - middle_point_diff
+        left_location = np.array([-0.1, 0, 0.5]) + middle_point_diff
 
         right_angles = (0, -np.pi / 2, -np.pi / 2)
         left_angles = (np.pi, np.pi / 2, np.pi / 2)
@@ -276,10 +293,6 @@ class Experiment:
         left_IKS = inverse_kinematic_solution(DH_matrix_UR5e, left_transform)
 
         exp_id = 2
-        ur_params_right = UR5e_PARAMS(inflation_factor=1.0)
-        ur_params_left = UR5e_without_camera_PARAMS(inflation_factor=1.0)
-
-        env = Environment(ur_params=ur_params_right)
 
         transform_right_arm = Transform(ur_params=ur_params_right,
                                         ur_location=env.arm_base_location[LocationType.RIGHT])
