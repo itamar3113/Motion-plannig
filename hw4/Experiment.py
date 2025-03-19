@@ -2,7 +2,7 @@ import json
 import time
 from enum import Enum
 import numpy as np
-
+import params
 from environment import Environment
 
 from kinematics import UR5e_PARAMS, UR5e_without_camera_PARAMS, Transform
@@ -118,9 +118,8 @@ class Experiment:
 
         update_environment(env, active_arm, left_arm_start, cubes_real)
         pickup_location = np.array(cubes_real[cube_i]) - np.array(env.arm_base_location[active_arm]) + np.array(
-            [0, 0, 0.14])
-        pickup_angle = (0, -np.pi, 0)
-        pickup_transform = self.transformation_matrix(pickup_location, pickup_angle)
+            [0, 0, params.before_pickup_height])
+        pickup_transform = self.transformation_matrix(pickup_location, params.pickup_angles)
         pickup_iks = inverse_kinematic_solution(DH_matrix_UR5e, pickup_transform)
         cube_approach = self.sol_from_ik(pickup_iks, bb, pickup_location)
         # plan the path
@@ -132,7 +131,7 @@ class Experiment:
                                                           LocationType.RIGHT,
                                                           "movel",
                                                           list(self.left_arm_home),
-                                                          [0, 0, -0.12],
+                                                          [0, 0, -params.pickup_lowering],
                                                           [list(cube) for cube in cubes_real],
                                                           Gripper.STAY,
                                                           Gripper.CLOSE)
@@ -141,7 +140,7 @@ class Experiment:
                                                           LocationType.RIGHT,
                                                           "movel",
                                                           list(self.left_arm_home),
-                                                          [0, 0, 0.12],
+                                                          [0, 0, params.pickup_lowering],
                                                           [list(cube) for cube in cubes_real],
                                                           Gripper.STAY,
                                                           Gripper.STAY)
@@ -159,7 +158,7 @@ class Experiment:
 
         self.push_step_info_into_single_cube_passing_data(
             "Left arm grip", active_arm, "movel",
-            self.right_arm_meeting_safety.tolist(), [0.08, 0, 0],
+            self.right_arm_meeting_safety.tolist(), [params.close_meeting_gap, 0, 0],
             [list(c) for c in cubes_real],
             Gripper.STAY, Gripper.CLOSE
         )
@@ -177,13 +176,12 @@ class Experiment:
         active_arm = LocationType.LEFT
         update_environment(env, active_arm, self.right_arm_meeting_safety, cubes_real)
 
-        offset = (1 + cube_i) * 0.06
+        offset = (1 + cube_i) * params.offset_factor
         putting_position = np.array(
             [env.cube_area_corner[LocationType.LEFT][0] + offset, env.cube_area_corner[active_arm][1] + 0.1, 0])
-        putting_position = putting_position - np.array(env.arm_base_location[active_arm]) + np.array([0, 0, 0.14])
+        putting_position = putting_position - np.array(env.arm_base_location[active_arm]) + np.array([0, 0, params.before_pickup_height])
 
-        putting_angles = (0, np.pi, 0)
-        putting_transform = self.transformation_matrix(putting_position, putting_angles)
+        putting_transform = self.transformation_matrix(putting_position, params.pickup_angles)
         putting_IKS = inverse_kinematic_solution(DH_matrix_UR5e, putting_transform)
         putting_conf = self.sol_from_ik(putting_IKS, bb, putting_position)
 
@@ -195,22 +193,21 @@ class Experiment:
             active_arm,
             "movel",
             self.right_arm_meeting_safety.tolist(),
-            [0, 0, -0.14],
+            [0, 0, -params.pickup_lowering],
             [list(cube) for cube in cubes_real],
             Gripper.STAY,
             Gripper.OPEN
         )
 
-        offset = (1 + cube_i) * 0.06
         cubes[cube_i] = [offset, 0.1, 0.02]
 
-        putting_conf = self.left_arm_meeting_safety
+
         self.push_step_info_into_single_cube_passing_data(
             "left_arm => [moving up], right_arm static",
             active_arm,
             "movel",
             self.right_arm_meeting_safety.tolist(),
-            [0, 0, 0.14],  # Move up
+            [0, 0, params.pickup_lowering],  # Move up
             [list(cube) for cube in cubes_real],
             Gripper.STAY,
             Gripper.STAY
@@ -280,14 +277,11 @@ class Experiment:
 
         middle_point_diff = (np.array(env.arm_base_location[LocationType.RIGHT]) - np.array(
             env.arm_base_location[LocationType.LEFT])) / 2
-        right_location = np.array([0, 0, 0.5]) - middle_point_diff
-        left_location = np.array([-0.1, 0, 0.5]) + middle_point_diff
+        right_location = np.array([0, 0, params.meeting_height]) - middle_point_diff
+        left_location = np.array([-params.meeting_gap, 0, params.meeting_height]) + middle_point_diff
 
-        right_angles = (0, -np.pi / 2, -np.pi / 2)
-        left_angles = (np.pi, np.pi / 2, np.pi / 2)
-
-        right_transform = self.transformation_matrix(right_location, right_angles)
-        left_transform = self.transformation_matrix(left_location, left_angles)
+        right_transform = self.transformation_matrix(right_location, params.right_angles)
+        left_transform = self.transformation_matrix(left_location, params.left_angles)
 
         right_IKS = inverse_kinematic_solution(DH_matrix_UR5e, right_transform)
         left_IKS = inverse_kinematic_solution(DH_matrix_UR5e, left_transform)
