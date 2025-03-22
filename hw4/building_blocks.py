@@ -31,6 +31,8 @@ class Building_Blocks(object):
         # testing variables
         self.t_curr = 0
         self.special_bias = special_bias
+        self.middle_point = (env.arm_base_location[LocationType.RIGHT][0] - env.arm_base_location[LocationType.LEFT][
+            0]) / 2 + env.arm_base_location[LocationType.LEFT][0]
         self.possible_link_collisions = [['shoulder_link', 'forearm_link'],
                                          ['shoulder_link', 'wrist_1_link'],
                                          ['shoulder_link', 'wrist_2_link'],
@@ -41,7 +43,7 @@ class Building_Blocks(object):
                                          ['forearm_link', 'wrist_2_link'],
                                          ['forearm_link', 'wrist_3_link']]
 
-        # self.TWO_PI = 2 * math.pi
+    # self.TWO_PI = 2 * math.pi
 
     def sample_random_config(self, goal_prob, goal_conf) -> np.array:
         """

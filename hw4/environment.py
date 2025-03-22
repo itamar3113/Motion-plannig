@@ -11,6 +11,7 @@ class Environment(object):
     '''
     Environment class implements the physical robot's environment 
     '''
+
     def __init__(self, ur_params):
         self.radius = 0.05
         self.ur_params = ur_params
@@ -54,10 +55,10 @@ class Environment(object):
         self.active_arm = None
 
         self.arm_base_location = {
-            LocationType.LEFT:  [(left_arm_left + left_arm_right) / (2.0 * 100),
-                             (left_arm_bottom + left_arm_top) / (2.0 * 100), 0],
-            LocationType.RIGHT:  [(right_arm_left + right_arm_right) / (2.0 * 100),
-                              (right_arm_bottom + right_arm_top) / (2.0 * 100), 0]
+            LocationType.LEFT: [(left_arm_left + left_arm_right) / (2.0 * 100),
+                                (left_arm_bottom + left_arm_top) / (2.0 * 100), 0],
+            LocationType.RIGHT: [(right_arm_left + right_arm_right) / (2.0 * 100),
+                                 (right_arm_bottom + right_arm_top) / (2.0 * 100), 0]
         }
 
         self.arm_transforms = {
@@ -67,9 +68,9 @@ class Environment(object):
 
         self.cube_areas = {
             LocationType.LEFT: [[left_area_left / 100.0, left_area_top / 100.0],
-                                     [left_area_right / 100.0, left_area_bottom / 100.0]],
+                                [left_area_right / 100.0, left_area_bottom / 100.0]],
             LocationType.RIGHT: [[right_area_left / 100.0, right_area_top / 100.0],
-                                      [right_area_right / 100.0, right_area_bottom / 100.0]]
+                                 [right_area_right / 100.0, right_area_bottom / 100.0]]
         }
         self.cube_area_corner = {
             LocationType.LEFT: np.array([left_area_left / 100.0, left_area_bottom / 100.0, 0]),
@@ -77,27 +78,30 @@ class Environment(object):
         }
         self.tables = {
             LocationType.LEFT: [[left_table_left / 100.0, left_table_top / 100.0],
-                                     [left_table_right / 100.0, left_table_bottom / 100.0]],
+                                [left_table_right / 100.0, left_table_bottom / 100.0]],
             LocationType.RIGHT: [[right_table_left / 100.0, right_table_top / 100.0],
-                                      [right_table_right / 100.0, right_table_bottom / 100.0]]
+                                 [right_table_right / 100.0, right_table_bottom / 100.0]]
         }
         self.bbox = [[0, left_table_top / 100.0], [right_table_right / 100.0, 0]]
 
         wall_height = 0.3
         self.walls = [
-            [(self.arm_base_location[LocationType.LEFT][0] + self.arm_base_location[LocationType.RIGHT][0]) / 2.0, 0, left_table_top / 100.0, 0, wall_height, 0]
+            [(self.arm_base_location[LocationType.LEFT][0] + self.arm_base_location[LocationType.RIGHT][0]) / 2.0, 0,
+             left_table_top / 100.0, 0, wall_height, 0]
         ]
 
         for wall in self.walls:
             if wall[5] == 0:
                 x_static_from_left_table_side = round((wall[0]) * 100, 1) - left_table_left
-                log_to_write = (f"Wall: X static on x={x_static_from_left_table_side}CM from the left side of the table,"
-                                f" rest of the wall boundaries: Y: "
-                                f"{round(wall[1] * 100, 1)}CM to {round(wall[2] * 100, 1)}CM, "
-                                f"Z: {round(wall[3] * 100, 1)} to {round(wall[4] * 100, 1)}CM.")
+                log_to_write = (
+                    f"Wall: X static on x={x_static_from_left_table_side}CM from the left side of the table,"
+                    f" rest of the wall boundaries: Y: "
+                    f"{round(wall[1] * 100, 1)}CM to {round(wall[2] * 100, 1)}CM, "
+                    f"Z: {round(wall[3] * 100, 1)} to {round(wall[4] * 100, 1)}CM.")
                 # Experiment.log(Experiment.LogType.INFO, log_to_write)
                 self.wall_x_const(0, left_table_top / 100.0, 0, wall_height,
-                                  (self.arm_base_location[LocationType.LEFT][0] + self.arm_base_location[LocationType.RIGHT][0]) / 2.0, self.obstacles_non_np)
+                                  (self.arm_base_location[LocationType.LEFT][0] +
+                                   self.arm_base_location[LocationType.RIGHT][0]) / 2.0, self.obstacles_non_np)
 
     def set_active_arm(self, active_arm):
         self.active_arm = active_arm
@@ -108,7 +112,9 @@ class Environment(object):
     def update_obstacles(self, cubes, static_arm_conf):
         self.radius = 0.025
         # cubes
-        all_obstacles = [*cubes, *self.get_static_arm_spheres(self.arm_transforms[self.get_other_arm()], static_arm_conf), *self.obstacles_non_np]
+        all_obstacles = [*cubes,
+                         *self.get_static_arm_spheres(self.arm_transforms[self.get_other_arm()], static_arm_conf),
+                         *self.obstacles_non_np]
         self.obstacles = np.array(all_obstacles)
 
     def get_static_arm_spheres(self, static_arm_transform, static_arm_conf):
@@ -122,58 +128,58 @@ class Environment(object):
         return spheres
 
     def add_box(self, x, y, z, dx, dy, dz, skip):
-        self.obstacles_non_np = [] # temp
+        self.obstacles_non_np = []  # temp
         self.box(x=x, y=y, z=z, dx=dx, dy=dy, dz=dz, obstacles=self.obstacles_non_np, skip=skip)
 
     def sphere_num(self, min_coord, max_cord):
         '''
         Return the number of spheres based on the distance
         '''
-        return int(np.ceil(abs(max_cord-min_coord) / (self.radius*2))+2)
-    
+        return int(np.ceil(abs(max_cord - min_coord) / (self.radius * 2)) + 2)
+
     def wall_y_const(self, x_min, x_max, z_min, z_max, y_const, obstacles):
         '''
         Constructs a wall with constant y coord value
         '''
         num_x = self.sphere_num(x_min, x_max)
         num_z = self.sphere_num(z_min, z_max)
-        for x in list(np.linspace(x_min, x_max,  num= num_x, endpoint=True)):
-                for z in list(np.linspace(z_min, z_max, num= num_z, endpoint=True)):
-                    obstacles.append([x, y_const, z])
-    
+        for x in list(np.linspace(x_min, x_max, num=num_x, endpoint=True)):
+            for z in list(np.linspace(z_min, z_max, num=num_z, endpoint=True)):
+                obstacles.append([x, y_const, z])
+
     def wall_x_const(self, y_min, y_max, z_min, z_max, x_const, obstacles):
         '''
         Constructs a wall with constant x coord value
         '''
         num_y = self.sphere_num(y_min, y_max)
         num_z = self.sphere_num(z_min, z_max)
-        for y in list(np.linspace(y_min, y_max,  num= num_y, endpoint=True)):
-                for z in list(np.linspace(z_min, z_max , num= num_z, endpoint=True)):
-                    obstacles.append([x_const, y, z])
-    
+        for y in list(np.linspace(y_min, y_max, num=num_y, endpoint=True)):
+            for z in list(np.linspace(z_min, z_max, num=num_z, endpoint=True)):
+                obstacles.append([x_const, y, z])
+
     def wall_z_const(self, x_min, x_max, y_min, y_max, z_const, obstacles):
         '''
         Constructs a wall with constant z coord value
         '''
         num_y = self.sphere_num(y_min, y_max)
         num_x = self.sphere_num(x_min, x_max)
-        for y in list(np.linspace(y_min, y_max,  num= num_y, endpoint=True)):
-                for x in list(np.linspace(x_min, x_max , num= num_x, endpoint=True)):
-                    obstacles.append([x, y, z_const])
-    
-    def box(self, x, y, z, dx, dy, dz, obstacles, skip =[]):
+        for y in list(np.linspace(y_min, y_max, num=num_y, endpoint=True)):
+            for x in list(np.linspace(x_min, x_max, num=num_x, endpoint=True)):
+                obstacles.append([x, y, z_const])
+
+    def box(self, x, y, z, dx, dy, dz, obstacles, skip=[]):
         '''
         Constructs a Box
         '''
         if '-x' not in skip:
-            self.wall_x_const(y-dy/2, y+dy/2, z-dz/2, z+dz/2, x-dx/2, obstacles)
+            self.wall_x_const(y - dy / 2, y + dy / 2, z - dz / 2, z + dz / 2, x - dx / 2, obstacles)
         if 'x' not in skip:
-            self.wall_x_const(y-dy/2, y+dy/2, z-dz/2, z+dz/2, x+dx/2, obstacles)
+            self.wall_x_const(y - dy / 2, y + dy / 2, z - dz / 2, z + dz / 2, x + dx / 2, obstacles)
         if '-y' not in skip:
-            self.wall_y_const(x-dx/2, x+dx/2, z-dz/2, z+dz/2, y-dy/2, obstacles)
+            self.wall_y_const(x - dx / 2, x + dx / 2, z - dz / 2, z + dz / 2, y - dy / 2, obstacles)
         if 'y' not in skip:
-            self.wall_y_const(x-dx/2, x+dx/2, z-dz/2, z+dz/2, y+dy/2, obstacles)
+            self.wall_y_const(x - dx / 2, x + dx / 2, z - dz / 2, z + dz / 2, y + dy / 2, obstacles)
         if '-z' not in skip:
-            self.wall_z_const(x-dx/2, x+dx/2, y-dy/2, y+dy/2, z-dz/2, obstacles)
+            self.wall_z_const(x - dx / 2, x + dx / 2, y - dy / 2, y + dy / 2, z - dz / 2, obstacles)
         if 'z' not in skip:
-            self.wall_z_const(x-dx/2, x+dx/2, y-dy/2, y+dy/2, z+dz/2, obstacles)
+            self.wall_z_const(x - dx / 2, x + dx / 2, y - dy / 2, y + dy / 2, z + dz / 2, obstacles)

@@ -21,11 +21,13 @@ class RRT_STAR(object):
         self.K = 5
 
     def find_path(self, start_conf, goal_conf):
-        self.tree.__init__(self.bb)
-        self.tree.AddVertex(start_conf)
+        iter_count = 0
+        if not self.tree.is_goal_exists(start_conf):
+            self.tree.AddVertex(start_conf)
+        if self.tree.is_goal_exists(goal_conf):
+            iter_count = self.itr_no_goal_limit
         plan = []
         start_time = time.time()
-        iter_count = 0
         while iter_count < self.itr_no_goal_limit:
             new_config = self.bb.sample_random_config(self.bb.p_bias, goal_conf)
             _, neighbor = self.tree.GetNearestVertex(new_config)
