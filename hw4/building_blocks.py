@@ -65,7 +65,6 @@ class Building_Blocks(object):
         return True if in collision
         @param conf - some configuration
         """
-        # TODO update env? also why different from HW2?
         all_spheres = self.env.arm_transforms[self.env.active_arm].conf2sphere_coords(conf)
         for links in self.possible_link_collisions:
             spheres1 = all_spheres[links[0]]
@@ -80,6 +79,14 @@ class Building_Blocks(object):
         for link, spheres in all_spheres.items():
             for sphere in spheres:
                 radius = self.env.arm_transforms[self.env.active_arm].sphere_radius[link]
+                if link != 'shoulder_link' and sphere[2] - radius < 0:
+                    return True
+                if self.env.active_arm == LocationType.RIGHT:
+                    if sphere[0] + radius > self.env.arm_base_location[LocationType.RIGHT][0] + 0.41:
+                        return True
+                else:
+                    if sphere[1] + radius > self.env.arm_base_location[LocationType.LEFT][1] + 0.45:
+                        return True
                 for obstacle in self.env.obstacles:
                     if spheres_intersect(sphere, radius, obstacle, self.env.radius):
                         return True

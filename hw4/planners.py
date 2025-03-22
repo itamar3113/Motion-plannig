@@ -45,7 +45,7 @@ class RRT_STAR(object):
             plan.append(self.tree.vertices[curr_id].state)
             plan.reverse()
             return np.array(plan), self.tree.vertices[curr_id].cost
-        return None
+        return None, None
 
     def rewire(self, new_id, new_config):
         neighbors_num = min(self.K, len(self.tree.vertices) - 1)
