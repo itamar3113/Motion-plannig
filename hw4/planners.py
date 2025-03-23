@@ -27,6 +27,7 @@ class RRT_STAR(object):
         if self.tree.is_goal_exists(goal_conf):
             iter_count = self.itr_no_goal_limit
         plan = []
+        plan_idx = []
         start_time = time.time()
         while iter_count < self.itr_no_goal_limit:
             new_config = self.bb.sample_random_config(self.bb.p_bias, goal_conf)
@@ -42,11 +43,14 @@ class RRT_STAR(object):
         if curr_id is not None:
             print(f'cost: {self.tree.vertices[curr_id].cost}')
             while curr_id != self.tree.get_idx_for_config(start_conf):
+                plan_idx.append(curr_id)
                 plan.append(self.tree.vertices[curr_id].state)
                 curr_id = self.tree.edges[curr_id]
+            plan_idx.append(curr_id)
             plan.append(self.tree.vertices[curr_id].state)
+            plan_idx.reverse()
             plan.reverse()
-            return np.array(plan), self.tree.vertices[curr_id].cost
+            return np.array(plan), np.array(plan_idx)
         return None, None
 
     def rewire(self, new_id, new_config):

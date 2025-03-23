@@ -73,25 +73,37 @@ class Experiment:
         self.experiment_result[-1]["gripper_pre"].append(gripper_pre)
         self.experiment_result[-1]["gripper_post"].append(gripper_post)
 
-    def plan_single_arm(self, planner, start_conf, goal_conf, description, active_id, command, static_arm_conf,
+    def plan_single_arm(self, planner, start_conf, goal_conf, curr_id, description, active_id, command,
+                        static_arm_conf,
                         cubes_real,
                         gripper_pre, gripper_post):
-        path, cost = planner.find_path(start_conf=start_conf,
-                                       goal_conf=goal_conf)  # add manipulator as argument?
+        path, path_idx = planner.find_path(start_conf=start_conf,
+                                           goal_conf=goal_conf)
+
+        real_path = []
+        while curr_id != 0:
+            if curr_id in path_idx:
+                break
+            real_path.append(planner.tree.vertices[curr_id].state)
+            curr_id = planner.tree.edges[curr_id]
+        idx_in_path = np.where(path_idx == curr_id)[0][0]
+        for conf in path[idx_in_path:]:
+            real_path.append(conf)
+
         # create the arm plan
         self.push_step_info_into_single_cube_passing_data(description,
                                                           active_id,
                                                           command,
                                                           static_arm_conf.tolist(),
-                                                          [path_element.tolist() for path_element in path],
+                                                          [path_element.tolist() for path_element in real_path],
                                                           [list(cube) for cube in cubes_real],
                                                           gripper_pre,
                                                           gripper_post)
-        return path
+        return path_idx[-1]
 
     def plan_single_cube_passing(self, cube_i, cubes,
                                  left_arm_start, right_arm_start,
-                                 env, bb, right_planner, left_planner, left_arm_transform, right_arm_transform):
+                                 env, bb, right_planner, left_planner, left_idx, right_idx):
         # add a new step entry
         single_cube_passing_info = {
             "description": [],  # text to be displayed on the animation
@@ -124,9 +136,11 @@ class Experiment:
         pickup_iks = inverse_kinematic_solution(DH_matrix_UR5e, pickup_transform)
         cube_approach = self.sol_from_ik(pickup_iks, bb, pickup_location)
         # plan the path
-        r_home_to_cube = self.plan_single_arm(right_planner, right_arm_start, cube_approach, description, active_arm,
-                                              "move",
-                                              left_arm_start, cubes_real, Gripper.OPEN, Gripper.STAY)
+        cube_approach_idx = self.plan_single_arm(right_planner, self.right_arm_home, cube_approach, right_idx,
+                                                 description,
+                                                 active_arm,
+                                                 "move",
+                                                 left_arm_start, cubes_real, Gripper.OPEN, Gripper.STAY)
         ###############################################################################
 
         self.push_step_info_into_single_cube_passing_data("picking up a cube: go down",
@@ -148,30 +162,21 @@ class Experiment:
                                                           Gripper.STAY)
 
         del cubes_real[cube_i]
-        update_environment(env, active_arm, self.right_arm_meeting_safety, cubes_real)
+        update_environment(env, active_arm, cube_approach, cubes_real)
 
-        self.push_step_info_into_single_cube_passing_data("right_arm => [cube pickup -> start], left_arm static",
-                                                          active_arm,
-                                                          'move',
-                                                          list(left_arm_start),
-                                                          [path_element.tolist() for path_element in
-                                                           reversed(r_home_to_cube)],
-                                                          [list(cube) for cube in cubes_real],
-                                                          Gripper.STAY,
-                                                          Gripper.STAY)
-
-        r_home_to_meeting = self.plan_single_arm(right_planner, self.right_arm_home, self.right_arm_meeting_safety,
-                                                 "right_arm => [start -> meeting point], left_arm static",
-                                                 active_arm, "move",
-                                                 left_arm_start, cubes_real, Gripper.STAY, Gripper.STAY)
+        r_meeting_idx = self.plan_single_arm(right_planner, self.right_arm_home, self.right_arm_meeting_safety,
+                                             cube_approach_idx,
+                                             "right_arm => [cube -> meeting point], left_arm static",
+                                             active_arm, "move",
+                                             left_arm_start, cubes_real, Gripper.STAY, Gripper.STAY)
 
         active_arm = LocationType.LEFT
         update_environment(env, active_arm, self.right_arm_meeting_safety, cubes_real)
 
-        l_home_to_meeting = self.plan_single_arm(left_planner, left_arm_start, self.left_arm_meeting_safety,
-                                                 "left_arm => [home -> meeting point], right_arm static", active_arm,
-                                                 'move',
-                                                 self.right_arm_meeting_safety, cubes_real, Gripper.STAY, Gripper.OPEN)
+        l_meeting_idx = self.plan_single_arm(left_planner, self.left_arm_home, self.left_arm_meeting_safety, left_idx,
+                                             "left_arm => [home -> meeting point], right_arm static", active_arm,
+                                             'move',
+                                             self.right_arm_meeting_safety, cubes_real, Gripper.STAY, Gripper.OPEN)
 
         self.push_step_info_into_single_cube_passing_data(
             "Left arm grip", active_arm, "movel",
@@ -189,18 +194,7 @@ class Experiment:
             Gripper.STAY, Gripper.OPEN
         )
 
-        active_arm = LocationType.LEFT
-        self.push_step_info_into_single_cube_passing_data("left_arm => [meeting -> home], right_arm static",
-                                                          active_arm,
-                                                          'move',
-                                                          list(self.right_arm_meeting_safety),
-                                                          [path_element.tolist() for path_element in
-                                                           reversed(l_home_to_meeting)],
-                                                          [list(cube) for cube in cubes_real],
-                                                          Gripper.STAY,
-                                                          Gripper.STAY)
-
-        description = "left_arm => [home -> Zone B], right_arm static"
+        description = "left_arm => [meeting -> Zone B], right_arm static"
         update_environment(env, active_arm, self.right_arm_meeting_safety, cubes_real)
 
         offset = (1 + cube_i) * params.offset_factor
@@ -213,10 +207,10 @@ class Experiment:
         putting_IKS = inverse_kinematic_solution(DH_matrix_UR5e, putting_transform)
         putting_conf = self.sol_from_ik(putting_IKS, bb, putting_position)
 
-        l_home_to_cube = self.plan_single_arm(left_planner, self.left_arm_home, putting_conf, description,
-                                              active_arm,
-                                              "move",
-                                              self.right_arm_meeting_safety, cubes_real, Gripper.STAY, Gripper.STAY)
+        l_cube_idx = self.plan_single_arm(left_planner, self.left_arm_home, putting_conf, l_meeting_idx, description,
+                                          active_arm,
+                                          "move",
+                                          self.right_arm_meeting_safety, cubes_real, Gripper.STAY, Gripper.STAY)
 
         self.push_step_info_into_single_cube_passing_data(
             "left_arm => [placing cube], right_arm static",
@@ -244,26 +238,7 @@ class Experiment:
 
         update_environment(env, active_arm, self.right_arm_meeting_safety, cubes_real)
 
-        self.push_step_info_into_single_cube_passing_data("left_arm => [meeting], right_arm static",
-                                                          active_arm,
-                                                          'move',
-                                                          list(self.right_arm_meeting_safety),
-                                                          [path_element.tolist() for path_element in
-                                                           reversed(l_home_to_cube)],
-                                                          [list(cube) for cube in cubes_real],
-                                                          Gripper.STAY,
-                                                          Gripper.STAY)
-
-        self.push_step_info_into_single_cube_passing_data("right_arm => [meeting -> start], left_arm static",
-                                                          LocationType.RIGHT,
-                                                          'move',
-                                                          list(self.left_arm_home),
-                                                          [path_element.tolist() for path_element in
-                                                           reversed(r_home_to_meeting)],
-                                                          [list(cube) for cube in cubes_real],
-                                                          Gripper.STAY,
-                                                          Gripper.STAY)
-        return self.left_arm_home, self.right_arm_home
+        return putting_conf, self.right_arm_meeting_safety, l_cube_idx, r_meeting_idx
 
     @staticmethod
     def transformation_matrix(location, angles):
@@ -370,12 +345,17 @@ class Experiment:
         log(msg="start planning the experiment.")
         left_arm_start = self.left_arm_home
         right_arm_start = self.right_arm_home
+        left_idx = 0
+        right_idx = 0
         for i in range(len(self.cubes)):
-            left_arm_start, right_arm_start = self.plan_single_cube_passing(i, self.cubes, left_arm_start,
-                                                                            right_arm_start,
-                                                                            env, bb, r_rrt_star_planner,
-                                                                            l_rrt_star_planner, left_arm_start,
-                                                                            right_arm_start)
+            left_arm_start, right_arm_start, left_idx, right_idx = self.plan_single_cube_passing(i, self.cubes,
+                                                                                                 left_arm_start,
+                                                                                                 right_arm_start,
+                                                                                                 env, bb,
+                                                                                                 r_rrt_star_planner,
+                                                                                                 l_rrt_star_planner,
+                                                                                                 left_idx,
+                                                                                                 right_idx)
 
         t2 = time.time()
         print(f"It took t={t2 - start_time} seconds")
