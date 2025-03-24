@@ -175,7 +175,7 @@ class Experiment:
 
         self.push_step_info_into_single_cube_passing_data(
             "Left arm grip", active_arm, "movel",
-            self.right_arm_meeting_safety.tolist(), [params.close_meeting_gap, 0, 0],
+            self.right_arm_meeting_safety.tolist(), [0, -params.close_meeting_gap, 0],
             [list(c) for c in cubes_real],
             Gripper.STAY, Gripper.CLOSE
         )
@@ -351,7 +351,8 @@ class Experiment:
         self.right_arm_meeting_safety = self.sol_from_ik(right_IKS, bb, right_location)
         update_environment(env, LocationType.LEFT, self.right_arm_meeting_safety,
                            get_shifted_cubes_to_real_world(self.cubes, [], env))
-        self.left_arm_meeting_safety = self.sol_from_ik(left_IKS, bb, left_location)
+        self.left_arm_meeting_safety = self.sol_from_ik(left_IKS, bb, left_location) + np.array(
+            [0, 0, 0, 0, 0, np.pi / 2])
 
         log(msg="start planning the experiment.")
         left_arm_start = self.left_arm_home
