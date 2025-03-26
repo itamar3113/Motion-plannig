@@ -13,7 +13,7 @@ class RRT_STAR(object):
         self.tree = RRTTree(bb)
         # testing variables
         self.t_curr = 0
-        self.itr_no_goal_limit = 250
+        self.itr_no_goal_limit = 400
         self.sample_rotation = 0.1
         # self.TWO_PI = 2 * math.pi
         self.last_cost = -1

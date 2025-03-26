@@ -300,8 +300,8 @@ class Experiment:
             diff = np.linalg.norm(np.array([transform[0, 3],
                                             transform[1, 3], transform[2, 3]]) - np.array(location))
             if diff < min_diff:
-                min_diff = diff
                 final_sol = sol
+                break
         final_sol = np.array(final_sol).flatten()
         return final_sol
 
