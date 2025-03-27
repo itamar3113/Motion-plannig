@@ -86,3 +86,26 @@ class RRT_STAR(object):
             print(len(self.tree.vertices))
             return new_config
         return None
+
+    def connect_to_tree(self, config):
+        if not self.tree.is_goal_exists(config):
+            nn_id, nn = self.tree.GetNearestVertex(config)
+            tmp_tree = self.tree
+            self.tree = RRTTree(self.bb)
+            self.tree.AddVertex(config)
+            path, _ = self.find_path(config, nn.state)
+            path = path[::-1]
+            prev_id = nn_id
+            prev_conf = nn.state
+            for conf in path[1:]:
+                new_id = tmp_tree.AddVertex(conf)
+                tmp_tree.AddEdge(prev_id, new_id, self.bb.compute_distance(conf, prev_conf))
+                prev_id = new_id
+                prev_conf = conf
+            self.tree = tmp_tree
+
+
+
+
+
+

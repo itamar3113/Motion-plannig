@@ -136,6 +136,8 @@ class Experiment:
         pickup_iks = inverse_kinematic_solution(DH_matrix_UR5e, pickup_transform)
         cube_approach = self.sol_from_ik(pickup_iks, bb, pickup_location)
         # plan the path
+        if cube_i > 0:
+            right_planner.connect_to_tree(cube_approach)
         cube_approach_idx = self.plan_single_arm(right_planner, self.right_arm_home, cube_approach, right_idx,
                                                  description,
                                                  active_arm,
@@ -163,7 +165,7 @@ class Experiment:
 
         del cubes_real[cube_i]
         update_environment(env, active_arm, cube_approach, cubes_real)
-
+        right_planner.connect_to_tree(self.right_arm_meeting_safety)
         r_meeting_idx = self.plan_single_arm(right_planner, self.right_arm_home, self.right_arm_meeting_safety,
                                              cube_approach_idx,
                                              "right_arm => [cube -> meeting point], left_arm static",
@@ -173,6 +175,8 @@ class Experiment:
         active_arm = LocationType.LEFT
         update_environment(env, active_arm, self.right_arm_meeting_safety, cubes_real)
 
+        if cube_i > 0:
+            left_planner.connect_to_tree(self.left_arm_meeting_safety)
         l_meeting_idx = self.plan_single_arm(left_planner, self.left_arm_home, self.left_arm_meeting_safety, left_idx,
                                              "left_arm => [home -> meeting point], right_arm static", active_arm,
                                              'move',
@@ -207,6 +211,7 @@ class Experiment:
         putting_IKS = inverse_kinematic_solution(DH_matrix_UR5e, putting_transform)
         putting_conf = self.sol_from_ik(putting_IKS, bb, putting_position)
 
+        left_planner.connect_to_tree(putting_conf)
         l_cube_idx = self.plan_single_arm(left_planner, self.left_arm_home, putting_conf, l_meeting_idx, description,
                                           active_arm,
                                           "move",
